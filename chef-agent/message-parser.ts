@@ -128,6 +128,7 @@ export class StreamingMessageParser {
                 content = cleanEscapedTags(content);
               }
 
+              content = cleanLlmArtifactTags(content);
               content += '\n';
             }
 
@@ -159,6 +160,8 @@ export class StreamingMessageParser {
                 content = cleanoutMarkdownSyntax(content);
                 content = cleanEscapedTags(content);
               }
+
+              content = cleanLlmArtifactTags(content);
 
               this._options.callbacks?.onActionStream?.({
                 artifactId: currentArtifact.id,
@@ -359,4 +362,17 @@ function cleanoutMarkdownSyntax(content: string) {
 
 function cleanEscapedTags(content: string) {
   return content.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+
+/**
+ * Strip XML tags that LLMs sometimes hallucinate from their tool-calling
+ * format into file content. These are never valid in source files.
+ *
+ * Known patterns:
+ * - `</parameter>`, `</parameter\n>`
+ * - `</function_results>`, `</function_calls>`, `</invoke>`
+ * - `</...>` (Anthropic namespace tags)
+ */
+function cleanLlmArtifactTags(content: string): string {
+  return content.replace(/<\/?(?:parameter|function_results|function_calls|invoke|antml:\w+)[^>]*>/g, '');
 }

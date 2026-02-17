@@ -43,7 +43,7 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
   }
   switch (provider) {
     case 'Anthropic':
-      return getEnv('ANTHROPIC_MODEL') || 'claude-sonnet-4-5';
+      return getEnv('ANTHROPIC_MODEL') || 'claude-sonnet-4-6';
     case 'Bedrock':
       return getEnv('AMAZON_BEDROCK_MODEL') || 'us.anthropic.claude-sonnet-4-20250514-v1:0';
     case 'OpenAI':
@@ -60,7 +60,11 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
 }
 
 function anthropicMaxTokens(modelChoice: string | undefined) {
-  return modelChoice === 'claude-sonnet-4-0' || modelChoice === 'claude-sonnet-4-5' ? 24576 : 8192;
+  return modelChoice === 'claude-sonnet-4-0' ||
+    modelChoice === 'claude-sonnet-4-5' ||
+    modelChoice === 'claude-sonnet-4-6'
+    ? 24576
+    : 8192;
 }
 
 export function getProvider(

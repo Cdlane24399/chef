@@ -16,6 +16,7 @@ import { workbenchStore } from '~/lib/stores/workbench.client';
 import { z } from 'zod';
 import { editToolParameters } from 'chef-agent/tools/edit';
 import { getAbsolutePath } from 'chef-agent/utils/workDir';
+import { WORK_DIR } from 'chef-agent/constants';
 import { cleanConvexOutput } from 'chef-agent/utils/shell';
 import type { BoltAction } from 'chef-agent/types';
 import type { BoltShell } from '~/utils/shell';
@@ -89,6 +90,7 @@ export class ActionRunner {
   #currentExecutionPromise: Promise<void> = Promise.resolve();
   #shellTerminal: BoltShell;
   #previousToolCalls: Map<string, { toolName: string; args: any }> = new Map();
+  #toolCallErrorCounts: Map<string, number> = new Map();
   runnerId = atom<string>(`${Date.now()}`);
   actions: ActionsMap = map({});
   onAlert?: (alert: ActionAlert) => void;
@@ -279,6 +281,19 @@ export class ActionRunner {
     try {
       await webcontainer.fs.writeFile(relativePath, action.content);
       logger.debug(`File written ${relativePath}`);
+
+      // Keep the files store in sync since watchPaths may not be available.
+      const absPath = getAbsolutePath(relativePath);
+      workbenchStore.files.setKey(absPath, { type: 'file', content: action.content, isBinary: false });
+
+      // Ensure parent folders are tracked in the store.
+      let dir = nodePath.dirname(absPath);
+      while (dir !== WORK_DIR && dir.startsWith(WORK_DIR)) {
+        if (!workbenchStore.files.get()[dir]) {
+          workbenchStore.files.setKey(dir, { type: 'folder' });
+        }
+        dir = nodePath.dirname(dir);
+      }
     } catch (error) {
       logger.error('Failed to write file\n\n', error);
     }
@@ -376,6 +391,10 @@ export class ActionRunner {
           }
           content = content.replace(args.old, args.new);
           await container.fs.writeFile(relPath, content);
+
+          // Keep the files store in sync since watchPaths may not be available.
+          workbenchStore.files.setKey(getAbsolutePath(relPath), { type: 'file', content, isBinary: false });
+
           result = `Successfully edited ${args.path}`;
           break;
         }
@@ -535,6 +554,8 @@ export class ActionRunner {
           throw new Error(`Unknown tool: ${action.toolName}`);
         }
       }
+      // On success, reset the error count for this tool
+      this.#toolCallErrorCounts.delete(action.toolName);
       this.onToolCallComplete({
         kind: 'success',
         result,
@@ -547,6 +568,22 @@ export class ActionRunner {
       if (!message.startsWith('Error:')) {
         message = 'Error: ' + message;
       }
+
+      // Track consecutive identical errors per tool to detect infinite loops.
+      // The AI can cycle through view→edit→deploy with different args but the same
+      // underlying error, bypassing the exact-duplicate dedup in #previousToolCalls.
+      const errorKey = `${action.toolName}:${message.substring(0, 300)}`;
+      const errorCount = (this.#toolCallErrorCounts.get(errorKey) ?? 0) + 1;
+      this.#toolCallErrorCounts.set(errorKey, errorCount);
+
+      if (errorCount >= 3) {
+        this.#toolCallErrorCounts.delete(errorKey);
+        message =
+          `${message}\n\nThis exact error has now occurred ${errorCount} times. ` +
+          `You are stuck in a loop. Stop making incremental edits and take a fundamentally ` +
+          `different approach — for example, rewrite the affected file from scratch with correct code.`;
+      }
+
       this.onToolCallComplete({
         kind: 'error',
         result: message,

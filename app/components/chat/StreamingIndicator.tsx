@@ -180,19 +180,20 @@ export default function StreamingIndicator(props: StreamingIndicatorProps) {
               <AnimatePresence>
                 <div className="actions">
                   <div className={classNames('flex text-sm gap-3')}>
-                    <div className="flex w-full items-center gap-1.5">
-                      <div className="">{icon}</div>
-                      {message}
-                      <div className="min-h-6 grow" />
-                      <LittleUsage
-                        teamSlug={teamSlug}
-                        streamStatus={streamStatus}
-                        modelSelection={props.modelSelection}
-                      />
+                    <div className="flex w-full items-start gap-1.5">
+                      <div className="mt-0.5 shrink-0">{icon}</div>
+                      <div className="min-w-0 flex-1">{message}</div>
+                      <div className="shrink-0">
+                        <LittleUsage
+                          teamSlug={teamSlug}
+                          streamStatus={streamStatus}
+                          modelSelection={props.modelSelection}
+                        />
+                      </div>
                       {streamStatus === 'error' && (
                         <Button
                           type="button"
-                          className="ml-2 h-auto"
+                          className="ml-2 h-auto shrink-0"
                           onClick={props.resendMessage}
                           icon={<ResetIcon />}
                         >
@@ -299,14 +300,14 @@ function LittleUsage({
           : `Out of tokens`;
 
   return (
-    <div className={classNames('flex flex-col items-center', needsMore ? 'h-auto' : 'h-6')}>
+    <div className={classNames('flex flex-col items-end', needsMore ? 'h-auto' : 'h-6')}>
       <Popover
         button={
           <button className="hover:text-content-primary">
             <div className="flex flex-col items-end gap-1 text-sm text-content-secondary">
               <UsageDonut tokenUsage={loading ? null : { used, quota }} label={label} hidden={hideDonut} />
               {needsMore && (
-                <div className="border-b border-dotted border-content-secondary text-xs text-content-secondary hover:border-content-primary ">
+                <div className="whitespace-nowrap border-b border-dotted border-content-secondary text-xs text-content-secondary hover:border-content-primary">
                   Upgrade or refer a friend to get more tokens
                 </div>
               )}

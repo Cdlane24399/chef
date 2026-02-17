@@ -71,49 +71,17 @@ export const models: Partial<
     }
   >
 > = {
-  auto: {
-    name: 'Auto',
-    recommended: true,
-    provider: 'auto',
-  },
-  'claude-4-sonnet': {
-    name: 'Claude 4 Sonnet',
+  'claude-sonnet-4-6': {
+    name: 'Claude Sonnet 4.6',
     provider: 'anthropic',
     recommended: true,
     requireKey: false,
   },
-  'claude-4.5-sonnet': {
-    name: 'Claude 4.5 Sonnet',
+  'claude-opus-4-6': {
+    name: 'Claude Opus 4.6',
     provider: 'anthropic',
     recommended: false,
     requireKey: false,
-  },
-  'gemini-2.5-pro': {
-    name: 'Gemini 2.5 Pro',
-    recommended: false,
-    provider: 'google',
-  },
-  'gpt-4.1': {
-    name: 'GPT-4.1',
-    provider: 'openai',
-  },
-  'gpt-5': {
-    name: 'GPT-5',
-    provider: 'openai',
-  },
-  'grok-3-mini': {
-    name: 'Grok 3 Mini',
-    provider: 'xai',
-  },
-  'claude-3-5-haiku': {
-    name: 'Claude 3.5 Haiku',
-    provider: 'anthropic',
-    requireKey: true,
-  },
-  'gpt-4.1-mini': {
-    name: 'GPT-4.1 Mini',
-    provider: 'openai',
-    requireKey: true,
   },
 } as const;
 
@@ -124,18 +92,15 @@ export const ModelSelector = React.memo(function ModelSelector({
 }: ModelSelectorProps) {
   const apiKey = useQuery(api.apiKeys.apiKeyForCurrentMember);
   const selectedModel = models[modelSelection];
-  const { useGeminiAuto, enableGpt5 } = useLaunchDarkly();
-  if (!selectedModel) {
-    captureMessage(`Model ${modelSelection} not found`);
-    setModelSelection('auto');
-  }
-
-  const availableModels = Object.entries(models).filter(([key]) => {
-    if (key === 'gpt-5') {
-      return enableGpt5;
+  const { useGeminiAuto } = useLaunchDarkly();
+  React.useEffect(() => {
+    if (!selectedModel) {
+      captureMessage(`Model ${modelSelection} not found`);
+      setModelSelection('claude-sonnet-4-6');
     }
-    return true;
-  });
+  }, [selectedModel, modelSelection, setModelSelection]);
+
+  const availableModels = Object.entries(models);
 
   return (
     <Combobox

@@ -103,6 +103,54 @@ describe('ChatContextManager', () => {
     });
   });
 
+  describe('calculatePromptCharacterCounts', () => {
+    test('handles tool parts with undefined input (input-streaming state)', () => {
+      const manager = createManager();
+      const messages: UIMessage[] = [
+        createMessage('assistant', [
+          {
+            type: 'tool-edit',
+            state: 'input-streaming',
+          } as any,
+        ]),
+      ];
+      const result = manager.calculatePromptCharacterCounts(messages);
+      expect(result.messageHistoryChars).toBe(0);
+    });
+
+    test('handles tool parts with defined input', () => {
+      const manager = createManager();
+      const messages: UIMessage[] = [
+        createMessage('assistant', [
+          {
+            type: 'tool-edit',
+            state: 'output-available',
+            input: { path: '/test.ts', content: 'hello' },
+            output: { success: true },
+          } as any,
+        ]),
+      ];
+      const result = manager.calculatePromptCharacterCounts(messages);
+      expect(result.messageHistoryChars).toBeGreaterThan(0);
+    });
+
+    test('handles tool parts with output-available but undefined output', () => {
+      const manager = createManager();
+      const messages: UIMessage[] = [
+        createMessage('assistant', [
+          {
+            type: 'tool-edit',
+            state: 'output-available',
+            input: { path: '/test.ts' },
+            output: undefined,
+          } as any,
+        ]),
+      ];
+      const result = manager.calculatePromptCharacterCounts(messages);
+      expect(result.messageHistoryChars).toBeGreaterThan(0);
+    });
+  });
+
   describe('prepareContext', () => {
     test('should not collapse messages when last message is not from user', () => {
       const maxCollapsedMessagesSize = 2000;

@@ -11,23 +11,9 @@ export function hasApiKeySet(
   }
 
   switch (modelSelection) {
-    case 'auto':
-      if (useGeminiAuto) {
-        return !!apiKey.google?.trim();
-      }
+    case 'claude-sonnet-4-6':
+    case 'claude-opus-4-6':
       return !!apiKey.value?.trim();
-    case 'claude-3-5-haiku':
-    case 'claude-4-sonnet':
-    case 'claude-4.5-sonnet':
-      return !!apiKey.value?.trim();
-    case 'gpt-4.1':
-    case 'gpt-4.1-mini':
-    case 'gpt-5':
-      return !!apiKey.openai?.trim();
-    case 'grok-3-mini':
-      return !!apiKey.xai?.trim();
-    case 'gemini-2.5-pro':
-      return !!apiKey.google?.trim();
     default: {
       const _exhaustiveCheck: never = modelSelection;
       return false;

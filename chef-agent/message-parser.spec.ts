@@ -159,6 +159,54 @@ describe('StreamingMessageParser', () => {
       runTest(input, expected);
     });
   });
+
+  describe('LLM artifact tag cleanup', () => {
+    it('should strip </parameter> from file content', () => {
+      const callbacks = {
+        onActionClose: vi.fn<ActionCallback>(),
+        onArtifactOpen: vi.fn<ArtifactCallback>(),
+        onArtifactClose: vi.fn<ArtifactCallback>(),
+        onActionOpen: vi.fn<ActionCallback>(),
+      };
+
+      const parser = new StreamingMessageParser({
+        callbacks,
+        artifactElement: () => '',
+      });
+
+      const input =
+        '<boltArtifact title="Test" id="test"><boltAction type="file" filePath="src/App.tsx">export default function App() {\n  return <div>Hello</div>;\n}\n</parameter></boltAction></boltArtifact>';
+
+      parser.parse(makePartId('msg_1', 0), input);
+
+      expect(callbacks.onActionClose).toHaveBeenCalledTimes(1);
+      const actionData = callbacks.onActionClose.mock.calls[0][0];
+      expect(actionData.action.content).toBe('export default function App() {\n  return <div>Hello</div>;\n}\n\n');
+    });
+
+    it('should strip </function_results> and </invoke> from file content', () => {
+      const callbacks = {
+        onActionClose: vi.fn<ActionCallback>(),
+        onArtifactOpen: vi.fn<ArtifactCallback>(),
+        onArtifactClose: vi.fn<ArtifactCallback>(),
+        onActionOpen: vi.fn<ActionCallback>(),
+      };
+
+      const parser = new StreamingMessageParser({
+        callbacks,
+        artifactElement: () => '',
+      });
+
+      const input =
+        '<boltArtifact title="Test" id="test"><boltAction type="file" filePath="src/App.tsx">const x = 1;\n</function_results>\n</invoke></boltAction></boltArtifact>';
+
+      parser.parse(makePartId('msg_1', 0), input);
+
+      expect(callbacks.onActionClose).toHaveBeenCalledTimes(1);
+      const actionData = callbacks.onActionClose.mock.calls[0][0];
+      expect(actionData.action.content).toBe('const x = 1;\n\n\n');
+    });
+  });
 });
 
 function runTest(input: string | string[], outputOrExpectedResult: string | ExpectedResult) {

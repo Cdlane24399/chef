@@ -22,17 +22,12 @@ export function backoffTime(numFailures: number) {
 
 // These are the user facing options for the model selector, which the
 // client then maps to the model provider used by the backend. For
-// example, the user may specify "claude-4-sonnet", but then we'll
+// example, the user may specify "claude-sonnet-4-6", but then we'll
 // fallback between Anthropic and Bedrock.
-export type ModelSelection =
-  | 'auto'
-  | 'claude-3-5-haiku'
-  | 'claude-4-sonnet'
-  | 'claude-4.5-sonnet'
-  | 'gpt-4.1'
-  | 'gpt-4.1-mini'
-  | 'gpt-5'
-  | 'grok-3-mini'
-  | 'gemini-2.5-pro';
+export type ModelSelection = 'claude-sonnet-4-6' | 'claude-opus-4-6';
 
 export const MAX_CONSECUTIVE_DEPLOY_ERRORS = 5;
+
+// Maximum number of automatic tool-call round-trips before the agent pauses
+// and waits for the user to send another message.
+export const MAX_TOOL_ROUNDTRIPS = 32;

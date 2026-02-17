@@ -9,7 +9,7 @@ import { useSnapScroll } from '~/lib/hooks/useSnapScroll';
 import { description } from '~/lib/stores/description';
 import { chatStore } from '~/lib/stores/chatId';
 import { workbenchStore } from '~/lib/stores/workbench.client';
-import { MAX_CONSECUTIVE_DEPLOY_ERRORS, type ModelSelection } from '~/utils/constants';
+import { MAX_CONSECUTIVE_DEPLOY_ERRORS, MAX_TOOL_ROUNDTRIPS, type ModelSelection } from '~/utils/constants';
 import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger } from 'chef-agent/utils/logger';
 import { BaseChat } from './BaseChat.client';
@@ -29,7 +29,6 @@ import { api } from '@convex/_generated/api';
 import { getTokenUsage } from '~/lib/convexUsage';
 import { formatDistanceStrict } from 'date-fns';
 import { atom } from 'nanostores';
-import { STATUS_MESSAGES } from './StreamingIndicator';
 import { Button } from '@ui/Button';
 import { TeamSelector } from '~/components/convex/TeamSelector';
 import { ClipboardIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
@@ -155,7 +154,11 @@ export const Chat = memo(
 
     const apiKey = useQuery(api.apiKeys.apiKeyForCurrentMember);
 
-    const [modelSelection, setModelSelection] = useLocalStorage<ModelSelection>('modelSelection', 'auto');
+    const [rawModelSelection, setModelSelection] = useLocalStorage<string>('modelSelection', 'claude-sonnet-4-6');
+    const validModels: string[] = ['claude-sonnet-4-6', 'claude-opus-4-6'];
+    const modelSelection: ModelSelection = validModels.includes(rawModelSelection)
+      ? (rawModelSelection as ModelSelection)
+      : 'claude-sonnet-4-6';
     const terminalInitializationOptions = useMemo(
       () => ({
         isReload,
@@ -198,15 +201,8 @@ export const Chat = memo(
         const MODEL_TO_PROVIDER_MAP: {
           [K in ModelSelection]: { providerName: ModelProvider; apiKeyField: 'value' | 'openai' | 'xai' | 'google' };
         } = {
-          auto: { providerName: 'anthropic', apiKeyField: 'value' },
-          'claude-4-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
-          'claude-4.5-sonnet': { providerName: 'anthropic', apiKeyField: 'value' },
-          'gpt-4.1': { providerName: 'openai', apiKeyField: 'openai' },
-          'gpt-5': { providerName: 'openai', apiKeyField: 'openai' },
-          'grok-3-mini': { providerName: 'xai', apiKeyField: 'xai' },
-          'gemini-2.5-pro': { providerName: 'google', apiKeyField: 'google' },
-          'claude-3-5-haiku': { providerName: 'anthropic', apiKeyField: 'value' },
-          'gpt-4.1-mini': { providerName: 'openai', apiKeyField: 'openai' },
+          'claude-sonnet-4-6': { providerName: 'anthropic', apiKeyField: 'value' },
+          'claude-opus-4-6': { providerName: 'anthropic', apiKeyField: 'value' },
         };
 
         // Get provider info for the current model
@@ -306,32 +302,12 @@ export const Chat = memo(
           let modelProvider: ProviderType;
           const retries = retryState.get();
           let modelChoice: string | undefined = undefined;
-          if (modelSelection === 'auto') {
-            const providers: ProviderType[] = anthropicProviders;
-            modelProvider = providers[retries.numFailures % providers.length];
-            modelChoice = 'claude-sonnet-4-0';
-          } else if (modelSelection === 'claude-3-5-haiku') {
+          if (modelSelection === 'claude-sonnet-4-6') {
             modelProvider = 'Anthropic';
-            modelChoice = 'claude-3-5-haiku-latest';
-          } else if (modelSelection === 'claude-4-sonnet') {
-            const providers: ProviderType[] = anthropicProviders;
-            modelProvider = providers[retries.numFailures % providers.length];
-            modelChoice = 'claude-sonnet-4-0';
-          } else if (modelSelection === 'claude-4.5-sonnet') {
+            modelChoice = 'claude-sonnet-4-6';
+          } else if (modelSelection === 'claude-opus-4-6') {
             modelProvider = 'Anthropic';
-            modelChoice = 'claude-sonnet-4-5';
-          } else if (modelSelection === 'grok-3-mini') {
-            modelProvider = 'XAI';
-          } else if (modelSelection === 'gemini-2.5-pro') {
-            modelProvider = 'Google';
-          } else if (modelSelection === 'gpt-4.1-mini') {
-            modelProvider = 'OpenAI';
-            modelChoice = 'gpt-4.1-mini';
-          } else if (modelSelection === 'gpt-4.1') {
-            modelProvider = 'OpenAI';
-          } else if (modelSelection === 'gpt-5') {
-            modelProvider = 'OpenAI';
-            modelChoice = 'gpt-5';
+            modelChoice = 'claude-opus-4-6';
           } else {
             const _exhaustiveCheck: never = modelSelection;
             throw new Error(`Unknown model: ${_exhaustiveCheck}`);
@@ -381,7 +357,18 @@ export const Chat = memo(
           };
         },
       }),
-      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+      sendAutomaticallyWhen: ({ messages: msgs }) => {
+        // Limit tool-call round-trips to prevent infinite loops
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg?.role === 'assistant') {
+          const stepCount = lastMsg.parts.filter((p) => p.type === 'step-start').length;
+          if (stepCount >= MAX_TOOL_ROUNDTRIPS) {
+            console.warn(`Reached max tool roundtrips (${MAX_TOOL_ROUNDTRIPS}), pausing automatic sends`);
+            return false;
+          }
+        }
+        return lastAssistantMessageIsCompleteWithToolCalls({ messages: msgs });
+      },
       async onToolCall({ toolCall }: { toolCall: any }) {
         console.log('Starting tool call', toolCall);
         // Don't block onToolCall — start async work and use addToolOutput when done
@@ -416,9 +403,9 @@ export const Chat = memo(
         const retries = retryState.get();
         logger.error(`Request failed (retries: ${JSON.stringify(retries)})`, e, error);
 
-        const backoff = error?.message.includes(STATUS_MESSAGES.error)
-          ? exponentialBackoff(retries.numFailures + 1)
-          : 0;
+        // Always apply exponential backoff on errors to prevent retry storms
+        // (e.g. when the dev server restarts and requests fail with "Failed to fetch")
+        const backoff = exponentialBackoff(retries.numFailures + 1);
         retryState.set({
           numFailures: retries.numFailures + 1,
           nextRetry: Date.now() + backoff,
@@ -838,11 +825,12 @@ export function DisabledText({
 
 function maxSizeForModel(modelSelection: ModelSelection, maxSize: number) {
   switch (modelSelection) {
-    case 'auto':
-    case 'gemini-2.5-pro':
+    case 'claude-sonnet-4-6':
+    case 'claude-opus-4-6':
       return maxSize;
-    default:
-      // For non-anthropic models not yet using caching, use a lower message size limit.
+    default: {
+      const _exhaustiveCheck: never = modelSelection;
       return 8192;
+    }
   }
 }

@@ -371,8 +371,10 @@ export class ChatContextManager {
       default:
         if (part.type.startsWith('tool-')) {
           const toolPart = part as any;
-          result += JSON.stringify(toolPart.input).length;
-          if (toolPart.state === 'output-available') {
+          if (toolPart.input !== undefined) {
+            result += JSON.stringify(toolPart.input).length;
+          }
+          if (toolPart.state === 'output-available' && toolPart.output !== undefined) {
             result += JSON.stringify(toolPart.output).length;
           }
         }
