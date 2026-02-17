@@ -119,6 +119,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const key = import.meta.env.VITE_POSTHOG_KEY || '';
     const apiHost = import.meta.env.VITE_POSTHOG_HOST || '';
 
+    if (!key) {
+      return;
+    }
+
     // See https://posthog.com/docs/libraries/js#config
     posthog.init(key, {
       api_host: apiHost,
@@ -140,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <>
       <AuthKitProvider
         clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
-        redirectUri={globalThis.process.env.WORKOS_REDIRECT_URI}
+        redirectUri={import.meta.env.VITE_WORKOS_REDIRECT_URI || (loaderData as any)?.ENV.WORKOS_REDIRECT_URI}
         apiHostname={import.meta.env.VITE_WORKOS_API_HOSTNAME}
       >
         <ClientOnly>

@@ -4,6 +4,7 @@ import { convexAgent } from '~/lib/.server/llm/convex-agent';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import type { LanguageModelUsage, UIMessage, ProviderMetadata } from 'ai';
+import { createUIMessageStreamResponse } from 'ai';
 import { checkTokenUsage, recordUsage } from '~/lib/.server/usage';
 import { disabledText, noTokensText } from '~/lib/convexUsage';
 import type { ModelProvider } from '~/lib/.server/llm/provider';
@@ -202,15 +203,7 @@ export async function chatAction({ request }: ActionFunctionArgs) {
       },
     });
 
-    return new Response(dataStream, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/event-stream; charset=utf-8',
-        Connection: 'keep-alive',
-        'Cache-Control': 'no-cache',
-        'Text-Encoding': 'chunked',
-      },
-    });
+    return createUIMessageStreamResponse({ stream: dataStream });
   } catch (error: any) {
     logger.error(error);
 

@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
-import { google } from '@ai-sdk/google';
+import { google } from '@convex-dev/ai-sdk-google';
 import { xai } from '@ai-sdk/xai';
 import { chefTask } from './chefTask.js';
 import { chefScorer } from './chefScorer.js';

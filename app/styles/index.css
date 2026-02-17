@@ -6,7 +6,7 @@
 @import 'components/resize-handle.css';
 @import 'components/code.css';
 @import 'components/editor.css';
-@tailwind utilities;
+@import 'tailwindcss';
 
 html,
 body {

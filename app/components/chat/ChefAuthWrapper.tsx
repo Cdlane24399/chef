@@ -95,7 +95,9 @@ export const ChefAuthProvider = ({
           await getAccessToken({});
           authRetries.current = 0;
         } catch (_e) {
-          console.error('Unable to fetch access token from WorkOS');
+          if (authRetries.current >= 2) {
+            console.error('Unable to fetch access token from WorkOS after retries');
+          }
           if (authRetries.current < 3 && verifySessionTimeout === null) {
             authRetries.current++;
             verifySessionTimeout = setTimeout(() => {

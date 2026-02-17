@@ -34,7 +34,8 @@
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.60",
     "@ai-sdk/anthropic": "^3.0.44",
-    "@ai-sdk/google": "npm:@convex-dev/ai-sdk-google@1.2.17",
+    "@ai-sdk/google": "^3.0.29",
+    "@convex-dev/ai-sdk-google": "1.2.17",
     "@ai-sdk/google-vertex": "^4.0.58",
     "@ai-sdk/openai": "^3.0.29",
     "@ai-sdk/react": "^3.0.88",
@@ -57,7 +58,6 @@
     "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.14",
-    "@convex-dev/ai-sdk-google": "1.2.17",
     "@convex-dev/design-system": "0.2.0",
     "@convex-dev/migrations": "^0.3.1",
     "@convex-dev/rate-limiter": "^0.3.2",
@@ -150,6 +150,8 @@
     "@remix-run/dev": "2.17.4",
     "@sentry/vite-plugin": "^4.9.1",
     "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/diff": "^8.0.0",
     "@types/dom-speech-recognition": "^0.0.7",
     "@types/file-saver": "^2.0.7",
@@ -197,7 +199,8 @@
   "pnpm": {
     "overrides": {
       "@remix-run/cloudflare": "npm:@remix-run/node@2.15.3",
-      "@ai-sdk/google": "npm:@convex-dev/ai-sdk-google@1.2.17"
+      "react": "$react",
+      "react-dom": "$react-dom"
     }
   },
   "packageManager": "pnpm@9.5.0"

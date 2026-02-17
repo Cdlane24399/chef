@@ -435,6 +435,8 @@ const TextareaWithHighlights = memo(function TextareaWithHighlights({
     <div className="relative overflow-y-auto" style={{ minHeight, maxHeight }}>
       <textarea
         ref={textareaRef}
+        id="chat-input"
+        name="chat-input"
         className={classNames(
           'w-full px-3 py-3 outline-none resize-none text-content-primary placeholder-content-tertiary bg-transparent text-sm leading-snug',
           'transition-opacity',

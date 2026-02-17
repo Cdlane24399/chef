@@ -1,4 +1,5 @@
 import type { LanguageModelUsage, UIMessage } from 'ai';
+import { isToolUIPart } from 'ai';
 
 import { useEffect } from 'react';
 
@@ -394,7 +395,7 @@ async function getUsageBreakdown(messages: UIMessage[]) {
       chefBreakdown: breakdown,
       messageSummaryInfo: {
         numParts: message.parts?.length ?? 0,
-        numToolInvocations: message.parts?.filter((p) => p.type === 'tool-invocation').length ?? 0,
+        numToolInvocations: message.parts?.filter((p) => isToolUIPart(p)).length ?? 0,
         numFailedToolInvocations: failedToolCalls.size,
       },
     });

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { convexTest, type TestConvexForDataModel } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";

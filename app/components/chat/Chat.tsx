@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react';
 import type { UIMessage } from 'ai';
-import { DefaultChatTransport } from 'ai';
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls, isToolUIPart } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useAnimate } from 'framer-motion';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -287,6 +287,7 @@ export const Chat = memo(
       setMessages,
       regenerate: reload,
       error,
+      addToolOutput,
     } = useChat({
       messages: initialMessages,
       transport: new DefaultChatTransport({
@@ -339,16 +340,11 @@ export const Chat = memo(
           if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
             const lastSystemMessage = messages[messages.length - 1];
             const toolCalls = lastSystemMessage.parts.filter(
-              (part: any) => part.type === 'tool-invocation' && part.toolInvocation.state === 'result',
+              (part: any) => isToolUIPart(part) && (part.state === 'output-available' || part.state === 'output-error'),
             );
             if (toolCalls.length >= MAX_CONSECUTIVE_DEPLOY_ERRORS) {
               const lastToolCalls = toolCalls.slice(-MAX_CONSECUTIVE_DEPLOY_ERRORS);
-              const allFailed = lastToolCalls.every(
-                (t: any) =>
-                  t.type === 'tool-invocation' &&
-                  t.toolInvocation.state === 'result' &&
-                  t.toolInvocation.result.startsWith('Error:'),
-              );
+              const allFailed = lastToolCalls.every((t: any) => isToolUIPart(t) && t.state === 'output-error');
               if (allFailed) {
                 shouldDisableTools = true;
               }
@@ -385,21 +381,28 @@ export const Chat = memo(
           };
         },
       }),
-      sendAutomaticallyWhen: ({ messages: msgs }) => {
-        // Auto-send when the last message is from the assistant and has tool invocations with results
-        // This replaces maxSteps: 64 behavior
-        if (msgs.length === 0) return false;
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg.role !== 'assistant') return false;
-        const hasToolResults = lastMsg.parts.some(
-          (part: any) => part.type === 'tool-invocation' && part.toolInvocation.state === 'result',
-        );
-        return hasToolResults;
-      },
+      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
       async onToolCall({ toolCall }: { toolCall: any }) {
         console.log('Starting tool call', toolCall);
-        const { result } = await workbenchStore.waitOnToolCall(toolCall.toolCallId);
-        console.log('Tool call finished', result);
+        // Don't block onToolCall — start async work and use addToolOutput when done
+        // Per AI SDK v6 best practices: no await on addToolOutput to avoid deadlocks
+        workbenchStore.waitOnToolCall(toolCall.toolCallId).then(({ result }) => {
+          console.log('Tool call finished', result);
+          if (typeof result === 'string' && result.startsWith('Error:')) {
+            addToolOutput({
+              tool: toolCall.toolName,
+              toolCallId: toolCall.toolCallId,
+              state: 'output-error',
+              errorText: result,
+            } as any);
+          } else {
+            addToolOutput({
+              tool: toolCall.toolName,
+              toolCallId: toolCall.toolCallId,
+              output: result,
+            } as any);
+          }
+        });
       },
       onError: async (e: Error) => {
         captureMessage('Failed to process chat request: ' + e.message, {

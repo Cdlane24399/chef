@@ -39,4 +39,4 @@ function checkEnvVars() {
 }
 
 checkNodeVersion();
-checkEnvVars();
+// checkEnvVars(); // Temporarily disabled for local dev

@@ -131,14 +131,25 @@ export class FilesStore {
   async #init() {
     const webcontainer = await this.#webcontainer;
     (globalThis as any).webcontainer = webcontainer;
-    (webcontainer as any).internal.watchPaths(
+    const internal = (webcontainer as any).internal;
+    if (!internal?.watchPaths) {
+      console.warn('WebContainer internal.watchPaths not available — file watching disabled');
+      return;
+    }
+    internal.watchPaths(
       { include: [`${WORK_DIR}/**`], exclude: ['**/node_modules', '.git'], includeContent: true },
       bufferWatchEvents(FILE_EVENTS_DEBOUNCE_MS, this.#processEventBuffer.bind(this)),
     );
   }
 
   async prewarmWorkdir(container: WebContainer) {
-    const absFilePaths = await (container as any).internal.fileSearch([] as any, WORK_DIR, {
+    const internal = (container as any).internal;
+    if (!internal?.fileSearch) {
+      console.warn('WebContainer internal.fileSearch not available — using fs.readdir fallback');
+      await this._prewarmWorkdirFallback(container);
+      return;
+    }
+    const absFilePaths = await internal.fileSearch([] as any, WORK_DIR, {
       excludes: ['.gitignore', 'node_modules'],
     });
     const dirs = new Set<string>();
@@ -169,6 +180,36 @@ export class FilesStore {
       this.files.setKey(getAbsolutePath(absPath), { type: 'file', content, isBinary });
     };
     await Promise.all(absFilePaths.map(loadFile));
+  }
+
+  async _prewarmWorkdirFallback(container: WebContainer) {
+    const readDirRecursive = async (dirPath: string): Promise<void> => {
+      let entries;
+      try {
+        entries = await container.fs.readdir(dirPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = `${dirPath}/${entry.name}`;
+        if (entry.name === 'node_modules' || entry.name === '.git') {
+          continue;
+        }
+        if (entry.isDirectory()) {
+          this.files.setKey(getAbsolutePath(fullPath), { type: 'folder' });
+          await readDirRecursive(fullPath);
+        } else {
+          const buffer = await container.fs.readFile(path.relative(container.workdir, fullPath));
+          const isBinary = isBinaryFile(buffer);
+          let content = '';
+          if (!isBinary) {
+            content = this.#decodeFileContent(buffer);
+          }
+          this.files.setKey(getAbsolutePath(fullPath), { type: 'file', content, isBinary });
+        }
+      }
+    };
+    await readDirRecursive(WORK_DIR);
   }
 
   #processEventBuffer(events: Array<[events: any[]]>) {

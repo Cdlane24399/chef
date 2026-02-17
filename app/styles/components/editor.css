@@ -99,7 +99,7 @@
 
   --cm-tooltip-backgroundColorSelected: var(
     --bolt-elements-editor-tooltip-backgroundColorSelected,
-    theme('colors.gray.500/0.2')
+    rgb(107 114 128 / 0.2)
   );
 
   --cm-tooltip-textColorSelected: var(--bolt-elements-editor-tooltip-textColorSelected, rgb(var(--content-primary)));
@@ -114,9 +114,9 @@ html.light {
   --bolt-elements-editor-gutter-activeLineTextColor: rgb(var(--content-primary));
   --bolt-elements-editor-foldGutter-textColorHover: rgb(var(--content-primary));
   --bolt-elements-editor-activeLineBackgroundColor: rgb(50 53 63 / 5%);
-  --bolt-elements-editor-tooltip-backgroundColorSelected: theme('colors.gray.500/0.2');
-  --bolt-elements-editor-search-button-backgroundColor: theme('colors.gray.100');
-  --bolt-elements-editor-search-button-backgroundColorHover: theme('colors.gray.900/0.1');
+  --bolt-elements-editor-tooltip-backgroundColorSelected: rgb(107 114 128 / 0.2);
+  --bolt-elements-editor-search-button-backgroundColor: #f3f4f6;
+  --bolt-elements-editor-search-button-backgroundColorHover: rgb(17 24 39 / 0.1);
 }
 
 html.dark {
@@ -127,6 +127,6 @@ html.dark {
   --bolt-elements-editor-activeLineBackgroundColor: rgb(50 53 63 / 50%);
   --bolt-elements-editor-foldGutter-textColorHover: rgb(var(--content-primary));
   --bolt-elements-editor-matchingBracketBackgroundColor: rgba(66, 180, 255, 0.3);
-  --bolt-elements-editor-search-button-backgroundColor: theme('colors.gray.800');
-  --bolt-elements-editor-search-button-backgroundColorHover: theme('colors.white/0.1');
+  --bolt-elements-editor-search-button-backgroundColor: #1f2937;
+  --bolt-elements-editor-search-button-backgroundColorHover: rgb(255 255 255 / 0.1);
 }
