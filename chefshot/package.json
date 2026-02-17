@@ -12,16 +12,16 @@
     "chefshot": "./chefshot.js"
   },
   "dependencies": {
-    "@playwright/test": "^1.42.1",
-    "dotenv": "^16.4.5",
+    "@playwright/test": "^1.58.2",
+    "dotenv": "^17.3.1",
     "jszip": "^3.10.1",
-    "typescript": "^5.4.2",
-    "tsx": "^4.7.1"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/node": "^20.17.30",
-    "@types/unzipper": "^0.10.9",
-    "commander": "^13.1.0"
+    "@types/node": "^25.2.3",
+    "@types/unzipper": "^0.10.11",
+    "commander": "^14.0.3"
   },
   "packageManager": "pnpm@9.5.0"
 }

@@ -1,4 +1,4 @@
-import type { Message } from 'ai';
+import type { LanguageModelUsage, UIMessage } from 'ai';
 
 import { useEffect } from 'react';
 
@@ -89,7 +89,7 @@ export function UsageBreakdownView({
   fileContent: Blob | null;
   convexSiteUrl: string;
 }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [usageData, setUsageData] = useState<DebugUsageData | null>(null);
   const convex = useConvex();
   useEffect(() => {
@@ -295,7 +295,7 @@ function BreakdownView({
     </div>
   );
 }
-async function getUsageBreakdown(messages: Message[]) {
+async function getUsageBreakdown(messages: UIMessage[]) {
   const chatTotalRawUsage = {
     completionTokens: 0,
     promptTokens: 0,
@@ -373,7 +373,7 @@ async function getUsageBreakdown(messages: Message[]) {
     if (message.role !== 'assistant') {
       continue;
     }
-    const parsedAnnotations = parseAnnotations(message.annotations);
+    const parsedAnnotations = parseAnnotations((message as any).annotations);
     const failedToolCalls = getFailedToolCalls(message);
     const { totalRawUsage, totalUsageBilledFor } = await calculateTotalUsage({
       startUsage: null,
@@ -417,7 +417,7 @@ function getPartInfos({
   usageAnnotationsForToolCalls,
   providerAnnotationsForToolCalls,
 }: {
-  message: Message;
+  message: UIMessage;
   usageAnnotationsForToolCalls: Record<string, UsageAnnotation | null>;
   providerAnnotationsForToolCalls: Record<string, { provider: ProviderType; model: string | undefined }>;
 }) {
@@ -440,12 +440,15 @@ function getPartInfos({
         partText: part.text,
         usageInfo: null,
       });
-    } else if (part.type === 'tool-invocation') {
-      const provider = providerAnnotationsForToolCalls[part.toolInvocation.toolCallId]?.provider ?? 'Anthropic';
-      const rawUsageForPart = usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]
+    } else if (part.type.startsWith('tool-')) {
+      const toolPart = part as any;
+      const toolCallId = toolPart.toolCallId as string;
+      const toolName = part.type.replace('tool-', '');
+      const provider = providerAnnotationsForToolCalls[toolCallId]?.provider ?? 'Anthropic';
+      const rawUsageForPart = usageAnnotationsForToolCalls[toolCallId]
         ? usageFromGeneration({
-            usage: usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]!,
-            providerMetadata: usageAnnotationsForToolCalls[part.toolInvocation.toolCallId]?.providerMetadata,
+            usage: usageAnnotationsForToolCalls[toolCallId]! as unknown as LanguageModelUsage,
+            providerMetadata: usageAnnotationsForToolCalls[toolCallId]?.providerMetadata,
           })
         : initializeUsage();
       const billedUsageForPart = rawUsageForPart;
@@ -453,7 +456,7 @@ function getPartInfos({
       partInfos.push({
         partIdx: idx,
         partType: 'tool-invocation',
-        partText: `Tool invocation: ${part.toolInvocation.toolName} (${part.toolInvocation.toolCallId})\n\n${part.toolInvocation.state === 'result' ? part.toolInvocation.result : '(incomplete call)'}`,
+        partText: `Tool invocation: ${toolName} (${toolCallId})\n\n${toolPart.state === 'output-available' ? toolPart.output : '(incomplete call)'}`,
         usageInfo: {
           rawUsage: rawUsageForPart,
           billedUsage: billedUsageForPart,
@@ -464,7 +467,7 @@ function getPartInfos({
     }
   }
   const finalUsage = usageFromGeneration({
-    usage: usageAnnotationsForToolCalls.final ?? initializeUsage(),
+    usage: (usageAnnotationsForToolCalls.final ?? initializeUsage()) as unknown as LanguageModelUsage,
     providerMetadata: usageAnnotationsForToolCalls.final?.providerMetadata ?? undefined,
   });
   const provider = providerAnnotationsForToolCalls.final?.provider ?? 'Anthropic';

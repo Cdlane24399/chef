@@ -1,13 +1,15 @@
 import { expect, test } from 'vitest';
 import { encodeUsageAnnotation } from './usage';
 import { annotationValidator, usageAnnotationValidator } from '~/lib/common/annotations';
+import type { LanguageModelUsage } from 'ai';
 
 test('encodeUsageAnnotationAnthropic', async () => {
   const usage = {
-    completionTokens: 100,
-    promptTokens: 200,
-    totalTokens: 300,
-  };
+    inputTokens: 200,
+    outputTokens: 100,
+    inputTokenDetails: {},
+    outputTokenDetails: {},
+  } as LanguageModelUsage;
   const providerMetadata = {
     anthropic: {
       cacheCreationInputTokens: 10,
@@ -37,10 +39,11 @@ test('encodeUsageAnnotationAnthropic', async () => {
 
 test('encodeUsageAnnotationOpenAI', async () => {
   const usage = {
-    completionTokens: 100,
-    promptTokens: 200,
-    totalTokens: 300,
-  };
+    inputTokens: 200,
+    outputTokens: 100,
+    inputTokenDetails: {},
+    outputTokenDetails: {},
+  } as LanguageModelUsage;
   const providerMetadata = {
     openai: {
       cachedPromptTokens: 10,
@@ -67,10 +70,11 @@ test('encodeUsageAnnotationOpenAI', async () => {
 
 test('encodeUsageAnnotationXAI', async () => {
   const usage = {
-    completionTokens: 100,
-    promptTokens: 200,
-    totalTokens: 300,
-  };
+    inputTokens: 200,
+    outputTokens: 100,
+    inputTokenDetails: {},
+    outputTokenDetails: {},
+  } as LanguageModelUsage;
   const providerMetadata = {
     xai: {
       cachedPromptTokens: 10,
@@ -97,10 +101,11 @@ test('encodeUsageAnnotationXAI', async () => {
 
 test('encodeUsageAnnotationGoogle', async () => {
   const usage = {
-    completionTokens: 100,
-    promptTokens: 200,
-    totalTokens: 300,
-  };
+    inputTokens: 200,
+    outputTokens: 100,
+    inputTokenDetails: {},
+    outputTokenDetails: {},
+  } as LanguageModelUsage;
   const providerMetadata = {
     google: {
       cachedContentTokenCount: 10,
@@ -127,10 +132,11 @@ test('encodeUsageAnnotationGoogle', async () => {
 
 test('encodeUsageAnnotationBedrock', async () => {
   const usage = {
-    completionTokens: 100,
-    promptTokens: 200,
-    totalTokens: 300,
-  };
+    inputTokens: 200,
+    outputTokens: 100,
+    inputTokenDetails: {},
+    outputTokenDetails: {},
+  } as LanguageModelUsage;
   const providerMetadata = {
     bedrock: {
       usage: {

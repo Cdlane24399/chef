@@ -3,7 +3,7 @@ import { useConvex } from 'convex/react';
 import { waitForConvexSessionId } from '~/lib/stores/sessionId';
 import { api } from '@convex/_generated/api';
 import type { SerializedMessage } from '@convex/messages';
-import type { Message } from '@ai-sdk/react';
+import type { UIMessage } from '@ai-sdk/react';
 import { setKnownUrlId } from '~/lib/stores/chatId';
 import { setKnownInitialId } from '~/lib/stores/chatId';
 import { description } from '~/lib/stores/description';
@@ -16,7 +16,7 @@ import { useStore } from '@nanostores/react';
 export interface InitialMessages {
   loadedChatId: string;
   serialized: SerializedMessage[];
-  deserialized: Message[];
+  deserialized: UIMessage[];
   loadedSubchatIndex: number;
 }
 
@@ -87,17 +87,15 @@ export function useInitialMessages(chatId: string | undefined):
           }
 
           const updatedParts = message.parts.map((part) => {
-            if (part.type === 'tool-invocation') {
+            if (part.type.startsWith('tool-')) {
+              const toolPart = part as any;
               // We could potentially handle these better by making the action runner
               // handle the interrupted calls, but treat these as failed states for now.
-              if (part.toolInvocation.state === 'partial-call' || part.toolInvocation.state === 'call') {
+              if (toolPart.state === 'input-streaming' || toolPart.state === 'input-available') {
                 return {
                   ...part,
-                  toolInvocation: {
-                    ...part.toolInvocation,
-                    state: 'result' as const,
-                    result: 'Error: Tool call was interrupted',
-                  },
+                  state: 'output-error' as const,
+                  errorText: 'Tool call was interrupted',
                 };
               }
             }
@@ -110,10 +108,10 @@ export function useInitialMessages(chatId: string | undefined):
           };
         });
 
-        const deserializedMessages = transformedMessages.map(deserializeMessageForConvex);
+        const deserializedMessages = (transformedMessages as SerializedMessage[]).map(deserializeMessageForConvex);
         setInitialMessages({
           loadedChatId: chatInfo.urlId ?? chatInfo.initialId,
-          serialized: transformedMessages,
+          serialized: transformedMessages as any,
           deserialized: deserializedMessages,
           loadedSubchatIndex: subchatIndexToFetch,
         });
@@ -129,20 +127,10 @@ export function useInitialMessages(chatId: string | undefined):
   return initialMessages;
 }
 
-function deserializeMessageForConvex(message: SerializedMessage): Message {
-  const content =
-    message.content ??
-    message.parts
-      ?.filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-      .map((part) => part.text)
-      .join('') ??
-    '';
-
+function deserializeMessageForConvex(message: SerializedMessage): UIMessage {
   return {
     ...message,
-    createdAt: message.createdAt ? new Date(message.createdAt) : undefined,
-    content,
-  };
+  } as unknown as UIMessage;
 }
 
 async function decompressMessages(compressed: Uint8Array): Promise<SerializedMessage[]> {

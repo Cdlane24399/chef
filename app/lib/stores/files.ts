@@ -1,4 +1,4 @@
-import type { WebContainer, PathWatcherEvent } from '@webcontainer/api';
+import type { WebContainer } from '@webcontainer/api';
 import { getEncoding } from 'istextorbinary';
 import { map, type MapStore } from 'nanostores';
 import { Buffer } from 'node:buffer';
@@ -131,14 +131,14 @@ export class FilesStore {
   async #init() {
     const webcontainer = await this.#webcontainer;
     (globalThis as any).webcontainer = webcontainer;
-    webcontainer.internal.watchPaths(
+    (webcontainer as any).internal.watchPaths(
       { include: [`${WORK_DIR}/**`], exclude: ['**/node_modules', '.git'], includeContent: true },
       bufferWatchEvents(FILE_EVENTS_DEBOUNCE_MS, this.#processEventBuffer.bind(this)),
     );
   }
 
   async prewarmWorkdir(container: WebContainer) {
-    const absFilePaths = await container.internal.fileSearch([] as any, WORK_DIR, {
+    const absFilePaths = await (container as any).internal.fileSearch([] as any, WORK_DIR, {
       excludes: ['.gitignore', 'node_modules'],
     });
     const dirs = new Set<string>();
@@ -171,7 +171,7 @@ export class FilesStore {
     await Promise.all(absFilePaths.map(loadFile));
   }
 
-  #processEventBuffer(events: Array<[events: PathWatcherEvent[]]>) {
+  #processEventBuffer(events: Array<[events: any[]]>) {
     const watchEvents = events.flat(2);
 
     for (const { type, path, buffer } of watchEvents) {

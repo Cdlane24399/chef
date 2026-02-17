@@ -329,7 +329,6 @@ function File({
     const changes = diffLines(normalizedOriginal, normalizedCurrent, {
       newlineIsToken: false,
       ignoreWhitespace: true,
-      ignoreCase: false,
     });
 
     return changes.reduce(

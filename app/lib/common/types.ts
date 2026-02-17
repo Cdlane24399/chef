@@ -1,4 +1,3 @@
-import type { ToolCallUnion } from 'ai';
 import type { npmInstallToolParameters } from 'chef-agent/tools/npmInstall';
 import type { editToolParameters } from 'chef-agent/tools/edit';
 import type { addEnvironmentVariablesParameters } from 'chef-agent/tools/addEnvironmentVariables';
@@ -7,6 +6,16 @@ import type { ActionStatus } from '~/lib/runtime/action-runner';
 import type { lookupDocsParameters } from 'chef-agent/tools/lookupDocs';
 import type { ConvexToolSet, EmptyArgs } from 'chef-agent/types';
 import type { getConvexDeploymentNameParameters } from 'chef-agent/tools/getConvexDeploymentName';
+
+// ToolCallUnion was removed in AI SDK v6 — define locally
+type ToolCallUnion<T extends Record<string, any>> = {
+  [K in keyof T & string]: {
+    type: 'tool-call';
+    toolCallId: string;
+    toolName: K;
+    args: any;
+  };
+}[keyof T & string];
 
 type ConvexToolCall = ToolCallUnion<ConvexToolSet>;
 

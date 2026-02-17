@@ -24,7 +24,7 @@ export const Terminal = memo(function Terminal({
   onTerminalResize?: (cols: number, rows: number) => void;
 }) {
   const terminalElementRef = useRef<HTMLDivElement>(null);
-  const terminalRef = useRef<XTerm>();
+  const terminalRef = useRef<XTerm | undefined>(undefined);
 
   useEffect(() => {
     const element = terminalElementRef.current!;

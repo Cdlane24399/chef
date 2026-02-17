@@ -72,9 +72,7 @@ function ExistingChatWrapper({ chatId }: { chatId: string }) {
   const easterEgg = useSplines(!isError && !!loading);
 
   const hadSuccessfulDeploy = initialMessages?.some(
-    (message) =>
-      message.role === 'assistant' &&
-      message.parts?.some((part) => part.type === 'tool-invocation' && part.toolInvocation.toolName === 'deploy'),
+    (message) => message.role === 'assistant' && message.parts?.some((part) => part.type === 'tool-deploy'),
   );
 
   if (initialMessages === null) {

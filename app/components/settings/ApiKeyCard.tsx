@@ -340,12 +340,11 @@ function ApiKeyItem({
             <div className="-mt-1 w-80">
               <TextInput
                 autoFocus
+                id="api-key-input"
                 type={showKey ? 'text' : 'password'}
                 value={newKeyValue}
                 onChange={handleKeyValueChange}
                 placeholder={`Enter your ${label}`}
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-expect-error Unclear issue with typing of design system
                 action={(): void => {
                   setShowKey(!showKey);
                 }}

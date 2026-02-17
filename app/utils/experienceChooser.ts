@@ -56,7 +56,7 @@ export function chooseExperience(userAgent: string, crossOriginIsolated: boolean
   }
 
   // The mobile experience is bad, but let's let them try.
-  if (device.type === 'mobile' || device.type === 'tablet') {
+  if ((device.type as string) === 'mobile' || (device.type as string) === 'tablet') {
     return 'mobile-warning';
   }
 

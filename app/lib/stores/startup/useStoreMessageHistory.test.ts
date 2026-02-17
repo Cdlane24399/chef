@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { Message } from '@ai-sdk/react';
+import type { UIMessage } from '@ai-sdk/react';
 import { getLastCompletePart } from './useStoreMessageHistory';
 
 vi.mock('lz4-wasm', () => ({
@@ -7,18 +7,16 @@ vi.mock('lz4-wasm', () => ({
   decompress: (data: Uint8Array) => data,
 }));
 
-function createMessage(overrides: Partial<Message> = {}): Message {
+function createMessage(overrides: Partial<UIMessage> = {}): UIMessage {
   return {
     id: `test-${Math.random()}`,
     role: 'user',
-    content: 'test',
     parts: [
       {
         type: 'text',
         text: 'test',
       },
     ],
-    createdAt: new Date(),
     ...overrides,
   };
 }
@@ -27,14 +25,12 @@ function createToolInvocationPart(
   invocation: { state: 'result'; result: string } | { state: 'partial-call' } | { state: 'call' },
 ) {
   return {
-    type: 'tool-invocation' as const,
-    toolInvocation: {
-      ...invocation,
-      toolCallId: `test-${Math.random()}`,
-      args: null,
-      toolName: 'test',
-    },
-  };
+    type: 'tool-test' as const,
+    toolCallId: `test-${Math.random()}`,
+    toolName: 'test',
+    args: null,
+    ...invocation,
+  } as any;
 }
 
 describe('getLastCompletePart', () => {

@@ -14,7 +14,6 @@ describe('ChatContextManager', () => {
   const createMessage = (role: 'user' | 'assistant', parts: UIMessage['parts']): UIMessage => ({
     id: '1',
     role,
-    content: '',
     parts,
   });
 
@@ -112,13 +111,11 @@ describe('ChatContextManager', () => {
         {
           id: '1',
           role: 'user',
-          content: 'A'.repeat(3000), // Create a large message
           parts: [{ type: 'text', text: 'A'.repeat(3000) }],
         },
         {
           id: '2',
           role: 'assistant',
-          content: 'Hi there',
           parts: [{ type: 'text', text: 'Hi there' }],
         },
       ];
@@ -142,7 +139,6 @@ describe('ChatContextManager', () => {
         {
           id: '1',
           role: 'user',
-          content: 'A'.repeat(3000), // Create a large message
           parts: [{ type: 'text', text: 'A'.repeat(3000) }],
         },
       ];
@@ -160,7 +156,6 @@ describe('ChatContextManager', () => {
       initialMessages.push({
         id: '2',
         role: 'user',
-        content: 'B'.repeat(3000), // Same size as first message
         parts: [{ type: 'text', text: 'B'.repeat(3000) }],
       });
 
@@ -184,19 +179,16 @@ describe('ChatContextManager', () => {
         {
           id: '1',
           role: 'user',
-          content: 'Hello',
           parts: [{ type: 'text', text: 'Hello' }],
         },
         {
           id: '2',
           role: 'assistant',
-          content: 'Hi there',
           parts: [{ type: 'text', text: 'Hi there' }],
         },
         {
           id: '3',
           role: 'user',
-          content: 'A'.repeat(3000), // Create a large message
           parts: [{ type: 'text', text: 'A'.repeat(3000) }],
         },
       ];
@@ -214,7 +206,6 @@ describe('ChatContextManager', () => {
       messages.push({
         id: '4',
         role: 'assistant',
-        content: 'Hi there',
         parts: [{ type: 'text', text: 'Hi there' }],
       });
       const { messages: newMessages2, collapsedMessages: collapsedMessages2 } = chatContextManager.prepareContext(
@@ -234,19 +225,16 @@ describe('ChatContextManager', () => {
         {
           id: '1',
           role: 'user',
-          content: 'Hello',
           parts: [{ type: 'text', text: 'Hello' }],
         },
         {
           id: '2',
           role: 'assistant',
-          content: 'Hi there',
           parts: [{ type: 'text', text: 'Hi there' }],
         },
         {
           id: '3',
           role: 'user',
-          content: 'A'.repeat(3000), // Create a large message
           parts: [{ type: 'text', text: 'A'.repeat(3000) }],
         },
       ];
@@ -265,8 +253,7 @@ describe('ChatContextManager', () => {
       newMessages.push({
         id: '4',
         role: 'user',
-        content: 'B'.repeat(100),
-        parts: [],
+        parts: [{ type: 'text', text: 'B'.repeat(100) }],
       });
       const { messages: newMessages2, collapsedMessages: collapsedMessages2 } = createManager().prepareContext(
         newMessages,

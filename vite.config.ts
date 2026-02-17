@@ -114,7 +114,7 @@ export default defineConfig((config) => {
       // Required to run the file write tool locally
       {
         name: 'buffer-polyfill',
-        transform(code, id) {
+        transform(code: string, id: string) {
           if (id.includes('env.mjs')) {
             return {
               code: `import { Buffer } from 'buffer';\n${code}`,
@@ -156,5 +156,5 @@ export default defineConfig((config) => {
         },
       },
     },
-  };
+  } as any;
 });

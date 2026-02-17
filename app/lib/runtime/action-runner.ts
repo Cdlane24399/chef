@@ -5,7 +5,7 @@ import type { ActionAlert, FileHistory } from '~/types/actions';
 import { createScopedLogger } from 'chef-agent/utils/logger';
 import { unreachable } from 'chef-agent/utils/unreachable';
 import type { ActionCallbackData } from 'chef-agent/message-parser';
-import type { ToolInvocation } from 'ai';
+// UIToolInvocation type is used via `any` after v6 migration
 import { viewParameters } from 'chef-agent/tools/view';
 import { renderDirectory } from 'chef-agent/utils/renderDirectory';
 import { renderFile } from 'chef-agent/utils/renderFile';
@@ -176,19 +176,19 @@ export class ActionRunner {
     // Check for duplicate tool calls
     if (action.type === 'toolUse') {
       const parsed = action.parsedContent;
-      if (parsed.state === 'call') {
-        const key = `${parsed.toolName}:${JSON.stringify(parsed.args)}`;
+      if (parsed.state === 'input-available') {
+        const key = `${action.toolName}:${JSON.stringify(parsed.input)}`;
         const previousCall = this.#previousToolCalls.get(key);
         if (previousCall) {
           this.onToolCallComplete({
             kind: 'error',
             result: 'Error: This exact action was already executed. Please try a different approach.',
             toolCallId: parsed.toolCallId,
-            toolName: parsed.toolName as ConvexToolName,
+            toolName: action.toolName as ConvexToolName,
           });
           return;
         }
-        this.#previousToolCalls.set(key, { toolName: parsed.toolName, args: parsed.args });
+        this.#previousToolCalls.set(key, { toolName: action.toolName, args: parsed.input });
       }
     }
 
@@ -324,20 +324,20 @@ export class ActionRunner {
       unreachable('Expected tool use action');
     }
 
-    const parsed: ToolInvocation = action.parsedContent;
+    const parsed: any = action.parsedContent;
 
-    if (parsed.state === 'result') {
+    if (parsed.state === 'output-available') {
       return;
     }
-    if (parsed.state === 'partial-call') {
+    if (parsed.state === 'input-streaming') {
       throw new Error('Tool call is still in progress');
     }
 
     let result: string;
     try {
-      switch (parsed.toolName) {
+      switch (action.toolName) {
         case 'view': {
-          const args = viewParameters.parse(parsed.args);
+          const args = viewParameters.parse(parsed.input);
           const container = await this.#webcontainer;
           const relPath = workDirRelative(args.path);
           const file = await readPath(container, relPath);
@@ -352,7 +352,7 @@ export class ActionRunner {
           break;
         }
         case 'edit': {
-          const args = editToolParameters.parse(parsed.args);
+          const args = editToolParameters.parse(parsed.input);
           const container = await this.#webcontainer;
           const relPath = workDirRelative(args.path);
           const file = await readPath(container, relPath);
@@ -381,7 +381,7 @@ export class ActionRunner {
         }
         case 'npmInstall': {
           try {
-            const args = npmInstallToolParameters.parse(parsed.args);
+            const args = npmInstallToolParameters.parse(parsed.input);
             const container = await this.#webcontainer;
             await waitForContainerBootState(ContainerBootState.READY);
             const npmInstallProc = await container.spawn('npm', ['install', ...args.packages.split(' ')]);
@@ -411,7 +411,7 @@ export class ActionRunner {
           break;
         }
         case 'lookupDocs': {
-          const args = lookupDocsParameters.parse(parsed.args);
+          const args = lookupDocsParameters.parse(parsed.input);
           const docsToLookup = args.docs;
           const results: string[] = [];
 
@@ -507,7 +507,7 @@ export class ActionRunner {
           break;
         }
         case 'addEnvironmentVariables': {
-          const args = addEnvironmentVariablesParameters.parse(parsed.args);
+          const args = addEnvironmentVariablesParameters.parse(parsed.input);
           const envVarNames = args.envVarNames;
           if (envVarNames.length === 0) {
             result = 'Error: No environment variables to add. Please provide a list of environment variable names.';
@@ -532,14 +532,14 @@ export class ActionRunner {
           break;
         }
         default: {
-          throw new Error(`Unknown tool: ${parsed.toolName}`);
+          throw new Error(`Unknown tool: ${action.toolName}`);
         }
       }
       this.onToolCallComplete({
         kind: 'success',
         result,
         toolCallId: action.parsedContent.toolCallId,
-        toolName: parsed.toolName,
+        toolName: action.toolName,
       });
     } catch (e: any) {
       console.error('Error on tool call', e);
@@ -551,7 +551,7 @@ export class ActionRunner {
         kind: 'error',
         result: message,
         toolCallId: action.parsedContent.toolCallId,
-        toolName: parsed.toolName as ConvexToolName,
+        toolName: action.toolName as ConvexToolName,
       });
       throw e;
     }

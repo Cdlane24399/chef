@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react';
-import type { Message, UIMessage } from 'ai';
+import type { UIMessage } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useAnimate } from 'framer-motion';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -54,12 +55,12 @@ const MAX_RETRIES = 4;
 
 const processSampledMessages = createSampler(
   (options: {
-    messages: Message[];
-    initialMessages: Message[];
-    parseMessages: (messages: Message[]) => void;
+    messages: UIMessage[];
+    initialMessages: UIMessage[];
+    parseMessages: (messages: UIMessage[]) => void;
     streamStatus: 'streaming' | 'submitted' | 'ready' | 'error';
     storeMessageHistory: (
-      messages: Message[],
+      messages: UIMessage[],
       streamStatus: 'streaming' | 'submitted' | 'ready' | 'error',
     ) => Promise<void>;
   }) => {
@@ -74,10 +75,10 @@ const processSampledMessages = createSampler(
 );
 
 interface ChatProps {
-  initialMessages: Message[];
+  initialMessages: UIMessage[];
   partCache: PartCache;
   storeMessageHistory: (
-    messages: Message[],
+    messages: UIMessage[],
     streamStatus: 'streaming' | 'submitted' | 'ready' | 'error',
   ) => Promise<void>;
   initializeChat: () => Promise<boolean>;
@@ -278,107 +279,127 @@ export const Chat = memo(
       }
     }, [apiKey, convex, modelSelection, setDisableChatMessage, useGeminiAuto]);
 
-    const { messages, status, stop, append, setMessages, reload, error } = useChat({
-      initialMessages,
-      api: '/api/chat',
-      sendExtraMessageFields: true,
-      experimental_prepareRequestBody: ({ messages }) => {
-        const chatInitialId = initialIdStore.get();
-        const deploymentName = convexProjectStore.get()?.deploymentName;
-        const teamSlug = selectedTeamSlugStore.get();
-        const token = getConvexAuthToken(convex);
-        if (!token) {
-          throw new Error('No token');
-        }
-        if (!teamSlug) {
-          throw new Error('No team slug');
-        }
-        let modelProvider: ProviderType;
-        const retries = retryState.get();
-        let modelChoice: string | undefined = undefined;
-        if (modelSelection === 'auto') {
-          const providers: ProviderType[] = anthropicProviders;
-          modelProvider = providers[retries.numFailures % providers.length];
-          modelChoice = 'claude-sonnet-4-0';
-        } else if (modelSelection === 'claude-3-5-haiku') {
-          modelProvider = 'Anthropic';
-          modelChoice = 'claude-3-5-haiku-latest';
-        } else if (modelSelection === 'claude-4-sonnet') {
-          const providers: ProviderType[] = anthropicProviders;
-          modelProvider = providers[retries.numFailures % providers.length];
-          modelChoice = 'claude-sonnet-4-0';
-        } else if (modelSelection === 'claude-4.5-sonnet') {
-          modelProvider = 'Anthropic';
-          modelChoice = 'claude-sonnet-4-5';
-        } else if (modelSelection === 'grok-3-mini') {
-          modelProvider = 'XAI';
-        } else if (modelSelection === 'gemini-2.5-pro') {
-          modelProvider = 'Google';
-        } else if (modelSelection === 'gpt-4.1-mini') {
-          modelProvider = 'OpenAI';
-          modelChoice = 'gpt-4.1-mini';
-        } else if (modelSelection === 'gpt-4.1') {
-          modelProvider = 'OpenAI';
-        } else if (modelSelection === 'gpt-5') {
-          modelProvider = 'OpenAI';
-          modelChoice = 'gpt-5';
-        } else {
-          const _exhaustiveCheck: never = modelSelection;
-          throw new Error(`Unknown model: ${_exhaustiveCheck}`);
-        }
-        let shouldDisableTools = false;
-        if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-          const lastSystemMessage = messages[messages.length - 1];
-          const toolCalls = lastSystemMessage.parts.filter(
-            (part) => part.type === 'tool-invocation' && part.toolInvocation.state === 'result',
-          );
-          if (toolCalls.length >= MAX_CONSECUTIVE_DEPLOY_ERRORS) {
-            const lastToolCalls = toolCalls.slice(-MAX_CONSECUTIVE_DEPLOY_ERRORS);
-            const allFailed = lastToolCalls.every(
-              (t) =>
-                t.type === 'tool-invocation' &&
-                t.toolInvocation.state === 'result' &&
-                t.toolInvocation.result.startsWith('Error:'),
+    const {
+      messages,
+      status,
+      stop,
+      sendMessage: append,
+      setMessages,
+      regenerate: reload,
+      error,
+    } = useChat({
+      messages: initialMessages,
+      transport: new DefaultChatTransport({
+        api: '/api/chat',
+        prepareSendMessagesRequest: ({ messages }: { messages: any[] }) => {
+          const chatInitialId = initialIdStore.get();
+          const deploymentName = convexProjectStore.get()?.deploymentName;
+          const teamSlug = selectedTeamSlugStore.get();
+          const token = getConvexAuthToken(convex);
+          if (!token) {
+            throw new Error('No token');
+          }
+          if (!teamSlug) {
+            throw new Error('No team slug');
+          }
+          let modelProvider: ProviderType;
+          const retries = retryState.get();
+          let modelChoice: string | undefined = undefined;
+          if (modelSelection === 'auto') {
+            const providers: ProviderType[] = anthropicProviders;
+            modelProvider = providers[retries.numFailures % providers.length];
+            modelChoice = 'claude-sonnet-4-0';
+          } else if (modelSelection === 'claude-3-5-haiku') {
+            modelProvider = 'Anthropic';
+            modelChoice = 'claude-3-5-haiku-latest';
+          } else if (modelSelection === 'claude-4-sonnet') {
+            const providers: ProviderType[] = anthropicProviders;
+            modelProvider = providers[retries.numFailures % providers.length];
+            modelChoice = 'claude-sonnet-4-0';
+          } else if (modelSelection === 'claude-4.5-sonnet') {
+            modelProvider = 'Anthropic';
+            modelChoice = 'claude-sonnet-4-5';
+          } else if (modelSelection === 'grok-3-mini') {
+            modelProvider = 'XAI';
+          } else if (modelSelection === 'gemini-2.5-pro') {
+            modelProvider = 'Google';
+          } else if (modelSelection === 'gpt-4.1-mini') {
+            modelProvider = 'OpenAI';
+            modelChoice = 'gpt-4.1-mini';
+          } else if (modelSelection === 'gpt-4.1') {
+            modelProvider = 'OpenAI';
+          } else if (modelSelection === 'gpt-5') {
+            modelProvider = 'OpenAI';
+            modelChoice = 'gpt-5';
+          } else {
+            const _exhaustiveCheck: never = modelSelection;
+            throw new Error(`Unknown model: ${_exhaustiveCheck}`);
+          }
+          let shouldDisableTools = false;
+          if (messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+            const lastSystemMessage = messages[messages.length - 1];
+            const toolCalls = lastSystemMessage.parts.filter(
+              (part: any) => part.type === 'tool-invocation' && part.toolInvocation.state === 'result',
             );
-            if (allFailed) {
-              shouldDisableTools = true;
+            if (toolCalls.length >= MAX_CONSECUTIVE_DEPLOY_ERRORS) {
+              const lastToolCalls = toolCalls.slice(-MAX_CONSECUTIVE_DEPLOY_ERRORS);
+              const allFailed = lastToolCalls.every(
+                (t: any) =>
+                  t.type === 'tool-invocation' &&
+                  t.toolInvocation.state === 'result' &&
+                  t.toolInvocation.result.startsWith('Error:'),
+              );
+              if (allFailed) {
+                shouldDisableTools = true;
+              }
             }
           }
-        }
-        const { messages: preparedMessages, collapsedMessages } = chatContextManager.current.prepareContext(
-          messages,
-          maxSizeForModel(modelSelection, maxCollapsedMessagesSize),
-          minCollapsedMessagesSize,
+          const { messages: preparedMessages, collapsedMessages } = chatContextManager.current.prepareContext(
+            messages,
+            maxSizeForModel(modelSelection, maxCollapsedMessagesSize),
+            minCollapsedMessagesSize,
+          );
+
+          const characterCounts = chatContextManager.current.calculatePromptCharacterCounts(preparedMessages);
+
+          return {
+            body: {
+              messages: preparedMessages,
+              firstUserMessage: messages.filter((message: any) => message.role == 'user').length == 1,
+              chatInitialId,
+              token,
+              teamSlug,
+              deploymentName,
+              modelProvider,
+              // Fall back to the user's API key if the request has failed too many times
+              userApiKey: retries.numFailures < MAX_RETRIES ? apiKey : { ...apiKey, preference: 'always' },
+              shouldDisableTools,
+              recordRawPromptsForDebugging,
+              modelChoice,
+              collapsedMessages,
+              promptCharacterCounts: characterCounts,
+              featureFlags: {
+                enableResend,
+              },
+            },
+          };
+        },
+      }),
+      sendAutomaticallyWhen: ({ messages: msgs }) => {
+        // Auto-send when the last message is from the assistant and has tool invocations with results
+        // This replaces maxSteps: 64 behavior
+        if (msgs.length === 0) return false;
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg.role !== 'assistant') return false;
+        const hasToolResults = lastMsg.parts.some(
+          (part: any) => part.type === 'tool-invocation' && part.toolInvocation.state === 'result',
         );
-
-        const characterCounts = chatContextManager.current.calculatePromptCharacterCounts(preparedMessages);
-
-        return {
-          messages: preparedMessages,
-          firstUserMessage: messages.filter((message) => message.role == 'user').length == 1,
-          chatInitialId,
-          token,
-          teamSlug,
-          deploymentName,
-          modelProvider,
-          // Fall back to the user's API key if the request has failed too many times
-          userApiKey: retries.numFailures < MAX_RETRIES ? apiKey : { ...apiKey, preference: 'always' },
-          shouldDisableTools,
-          recordRawPromptsForDebugging,
-          modelChoice,
-          collapsedMessages,
-          promptCharacterCounts: characterCounts,
-          featureFlags: {
-            enableResend,
-          },
-        };
+        return hasToolResults;
       },
-      maxSteps: 64,
-      async onToolCall({ toolCall }) {
+      async onToolCall({ toolCall }: { toolCall: any }) {
         console.log('Starting tool call', toolCall);
         const { result } = await workbenchStore.waitOnToolCall(toolCall.toolCallId);
         console.log('Tool call finished', result);
-        return result;
       },
       onError: async (e: Error) => {
         captureMessage('Failed to process chat request: ' + e.message, {
@@ -403,12 +424,8 @@ export const Chat = memo(
         workbenchStore.abortAllActions();
         await checkTokenUsage();
       },
-      onFinish: async (message, response) => {
-        const usage = response.usage;
-        if (usage) {
-          console.debug('Token usage in response:', usage);
-        }
-        if (response.finishReason == 'stop') {
+      onFinish: async ({ finishReason }: { finishReason?: string }) => {
+        if (finishReason == 'stop') {
           retryState.set({ numFailures: 0, nextRetry: Date.now() });
         }
         logger.debug('Finished streaming');
@@ -538,7 +555,6 @@ export const Chat = memo(
           ? chatContextManager.current.relevantFiles(messages, `${Date.now()}`, maxRelevantFilesSize)
           : {
               id: `${Date.now()}`,
-              content: '',
               role: 'user',
               parts: [],
             };
@@ -549,7 +565,6 @@ export const Chat = memo(
           type: 'text',
           text: messageInput,
         });
-        newMessage.content = messageInput;
         if (!chatStarted) {
           setMessages([newMessage]);
           reload();
@@ -566,7 +581,6 @@ export const Chat = memo(
           });
           workbenchStore.resetAllFileModifications();
         }
-        maybeRelevantFilesMessage.content = messageInput;
         maybeRelevantFilesMessage.parts.push({
           type: 'text',
           text: messageInput,

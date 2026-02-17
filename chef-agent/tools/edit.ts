@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 const editToolDescription = `
@@ -18,7 +18,7 @@ export const editToolParameters = z.object({
   new: z.string().describe('The new fragment of text to replace it with. Must be less than 1024 characters.'),
 });
 
-export const editTool: Tool = {
+export const editTool = tool({
   description: editToolDescription,
-  parameters: editToolParameters,
-};
+  inputSchema: editToolParameters,
+});

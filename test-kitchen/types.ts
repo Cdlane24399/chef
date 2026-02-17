@@ -1,9 +1,9 @@
-import { LanguageModelUsage, LanguageModelV1 } from 'ai';
+import { LanguageModelUsage, LanguageModel } from 'ai';
 
 export type ChefModel = {
   name: string;
   model_slug: string;
-  ai: LanguageModelV1;
+  ai: LanguageModel;
   maxTokens: number;
 };
 

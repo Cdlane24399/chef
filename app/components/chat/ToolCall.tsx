@@ -23,7 +23,7 @@ import type { ConvexToolInvocation } from '~/lib/common/types';
 import { getTerminalTheme } from '~/components/workbench/terminal/theme';
 import { FitAddon } from '@xterm/addon-fit';
 import { viewParameters } from 'chef-agent/tools/view';
-import { getHighlighter } from 'shiki';
+import { createHighlighter } from 'shiki';
 import { themeStore } from '~/lib/stores/theme';
 import { getLanguageFromExtension } from '~/utils/getLanguageFromExtension';
 import { path } from 'chef-agent/utils/path';
@@ -191,7 +191,7 @@ const Terminal = memo(
       terminalOutput = invocation.result;
     }
     const terminalElementRef = useRef<HTMLDivElement>(null);
-    const terminalRef = useRef<XTerm>();
+    const terminalRef = useRef<XTerm | undefined>(undefined);
     useEffect(() => {
       const element = terminalElementRef.current!;
       const fitAddon = new FitAddon();
@@ -575,7 +575,7 @@ const LineNumberViewer = memo(function LineNumberViewer({
   const theme = useStore(themeStore);
 
   useEffect(() => {
-    getHighlighter({
+    createHighlighter({
       themes: ['github-dark', 'github-light'],
       langs: [
         'typescript',

@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 export const npmInstallToolDescription = `
@@ -21,7 +21,7 @@ export const npmInstallToolParameters = z.object({
   packages: z.string().describe(packagesDescription),
 });
 
-export const npmInstallTool: Tool = {
+export const npmInstallTool = tool({
   description: npmInstallToolDescription,
-  parameters: npmInstallToolParameters,
-};
+  inputSchema: npmInstallToolParameters,
+});

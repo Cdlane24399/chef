@@ -1,4 +1,3 @@
-import type { Message } from 'ai';
 import { z } from 'zod';
 
 // This is added as a message annotation by the server when the agent has
@@ -82,7 +81,7 @@ export const annotationValidator = z.discriminatedUnion('type', [
   }),
 ]);
 
-export const failedDueToRepeatedErrors = (annotations: Message['annotations']) => {
+export const failedDueToRepeatedErrors = (annotations: unknown[] | undefined) => {
   if (!annotations) {
     return false;
   }
@@ -93,7 +92,7 @@ export const failedDueToRepeatedErrors = (annotations: Message['annotations']) =
 };
 
 export const parseAnnotations = (
-  annotations: Message['annotations'],
+  annotations: unknown[] | undefined,
 ): {
   failedDueToRepeatedErrors: boolean;
   usageForToolCall: Record<string, UsageAnnotation | null>;

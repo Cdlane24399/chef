@@ -5,9 +5,9 @@ const BOTTOM_THRESHOLD = 50;
 
 export function useSnapScroll() {
   const autoScrollRef = useRef(true);
-  const scrollNodeRef = useRef<HTMLDivElement>();
-  const onScrollRef = useRef<() => void>();
-  const observerRef = useRef<ResizeObserver>();
+  const scrollNodeRef = useRef<HTMLDivElement | undefined>(undefined);
+  const onScrollRef = useRef<(() => void) | undefined>(undefined);
+  const observerRef = useRef<ResizeObserver | undefined>(undefined);
   const lastScrollTopRef = useRef<number>(0);
 
   const messageRef = useCallback((node: HTMLDivElement | null) => {

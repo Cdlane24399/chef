@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 export const getConvexDeploymentNameDescription = `
@@ -11,7 +11,7 @@ https://dashboard.convex.dev/d/{deploymentName}.
 
 export const getConvexDeploymentNameParameters = z.object({});
 
-export const getConvexDeploymentNameTool: Tool = {
+export const getConvexDeploymentNameTool = tool({
   description: getConvexDeploymentNameDescription,
-  parameters: getConvexDeploymentNameParameters,
-};
+  inputSchema: getConvexDeploymentNameParameters,
+});

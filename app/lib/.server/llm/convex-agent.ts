@@ -1,12 +1,12 @@
 import {
-  createDataStream,
+  createUIMessageStream,
   streamText,
-  type CoreAssistantMessage,
-  type CoreMessage,
-  type CoreToolMessage,
-  type DataStreamWriter,
+  type ModelMessage,
+  type AssistantModelMessage,
+  type ToolModelMessage,
+  type UIMessageStreamWriter,
   type LanguageModelUsage,
-  type Message,
+  type UIMessage,
   type ProviderMetadata,
   type StepResult,
 } from 'ai';
@@ -37,7 +37,7 @@ import { addEnvironmentVariablesTool } from 'chef-agent/tools/addEnvironmentVari
 import { getConvexDeploymentNameTool } from 'chef-agent/tools/getConvexDeploymentName';
 import type { PromptCharacterCounts } from 'chef-agent/ChatContextManager';
 
-type Messages = Message[];
+type Messages = UIMessage[];
 
 export async function convexAgent(args: {
   chatInitialId: string;
@@ -49,7 +49,7 @@ export async function convexAgent(args: {
   userApiKey: string | undefined;
   shouldDisableTools: boolean;
   recordUsageCb: (
-    lastMessage: Message | undefined,
+    lastMessage: UIMessage | undefined,
     finalGeneration: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   ) => Promise<void>;
   recordRawPromptsForDebugging: boolean;
@@ -102,7 +102,7 @@ export async function convexAgent(args: {
   tools.view = viewTool;
   tools.edit = editTool;
 
-  const messagesForDataStream: CoreMessage[] = [
+  const messagesForDataStream: ModelMessage[] = [
     {
       role: 'system' as const,
       content: ROLE_SYSTEM_PROMPT,
@@ -111,7 +111,7 @@ export async function convexAgent(args: {
       role: 'system' as const,
       content: generalSystemPrompt(opts),
     },
-    ...cleanupAssistantMessages(messages),
+    ...(await cleanupAssistantMessages(messages)),
   ];
 
   if (modelProvider === 'Bedrock') {
@@ -134,18 +134,18 @@ export async function convexAgent(args: {
     };
   }
 
-  const dataStream = createDataStream({
-    execute(dataStream) {
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
       const result = streamText({
         model: provider.model,
-        maxTokens: provider.maxTokens,
+        maxOutputTokens: provider.maxTokens,
         providerOptions: provider.options,
         messages: messagesForDataStream,
         tools,
         toolChoice: shouldDisableTools ? 'none' : 'auto',
         onFinish: (result) => {
           onFinishHandler({
-            dataStream,
+            writer,
             messages,
             result,
             tracer,
@@ -153,14 +153,14 @@ export async function convexAgent(args: {
             recordUsageCb,
             toolsDisabledFromRepeatedErrors: shouldDisableTools,
             recordRawPromptsForDebugging,
-            coreMessages: messagesForDataStream,
+            modelMessages: messagesForDataStream,
             modelProvider,
             modelChoice,
             collapsedMessages,
             promptCharacterCounts,
             _startTime: startTime,
             _firstResponseTime: firstResponseTime,
-            providerModel: provider.model.modelId,
+            providerModel: (provider.model as any).modelId ?? 'unknown',
           });
         },
         onError({ error }) {
@@ -203,17 +203,17 @@ export async function convexAgent(args: {
         }
       })();
 
-      result.mergeIntoDataStream(dataStream);
+      writer.merge(result.toUIMessageStream());
     },
-    onError(error: any) {
-      return error.message;
+    onError(error: unknown) {
+      return error instanceof Error ? error.message : String(error);
     },
   });
-  return dataStream;
+  return stream;
 }
 
 async function onFinishHandler({
-  dataStream,
+  writer,
   messages,
   result,
   tracer,
@@ -221,7 +221,7 @@ async function onFinishHandler({
   recordUsageCb,
   toolsDisabledFromRepeatedErrors,
   recordRawPromptsForDebugging,
-  coreMessages,
+  modelMessages,
   modelProvider,
   modelChoice,
   collapsedMessages,
@@ -230,18 +230,18 @@ async function onFinishHandler({
   _firstResponseTime,
   providerModel,
 }: {
-  dataStream: DataStreamWriter;
+  writer: UIMessageStreamWriter;
   messages: Messages;
-  result: Omit<StepResult<any>, 'stepType' | 'isContinued'>;
+  result: StepResult<any> & { readonly steps: StepResult<any>[]; readonly totalUsage: LanguageModelUsage };
   tracer: Tracer | null;
   chatInitialId: string;
   recordUsageCb: (
-    lastMessage: Message | undefined,
+    lastMessage: UIMessage | undefined,
     finalGeneration: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   ) => Promise<void>;
   recordRawPromptsForDebugging: boolean;
   toolsDisabledFromRepeatedErrors: boolean;
-  coreMessages: CoreMessage[];
+  modelMessages: ModelMessage[];
   modelProvider: ModelProvider;
   modelChoice: string | undefined;
   collapsedMessages: boolean;
@@ -253,9 +253,9 @@ async function onFinishHandler({
   const { providerMetadata } = result;
   // This usage accumulates accross multiple /api/chat calls until finishReason of 'stop'.
   const usage = {
-    completionTokens: normalizeUsage(result.usage.completionTokens),
-    promptTokens: normalizeUsage(result.usage.promptTokens),
-    totalTokens: normalizeUsage(result.usage.totalTokens),
+    completionTokens: normalizeUsage(result.usage.outputTokens),
+    promptTokens: normalizeUsage(result.usage.inputTokens),
+    totalTokens: normalizeUsage(result.usage.inputTokens) + normalizeUsage(result.usage.outputTokens),
   };
   console.log('Finished streaming', {
     finishReason: result.finishReason,
@@ -301,16 +301,21 @@ async function onFinishHandler({
         span.setAttribute('providerMetadata.bedrock.cacheReadInputTokens', bedrock.usage?.cacheReadInputTokens ?? 0);
       }
     }
-    if (result.finishReason === 'stop' || result.finishReason === 'unknown') {
+    if (result.finishReason === 'stop') {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === 'assistant') {
-        // This field is deprecated, but for some reason, the new field "parts", does not contain all of the tool calls. This is likely a
-        // vercel bug. We do this at the end end the request because it's when we have the results from all of the tool calls.
-        const toolCalls = lastMessage.toolInvocations?.filter((t) => t.toolName === 'deploy' && t.state === 'result');
+        // Check for deploy tool calls in the message parts
+        const toolParts = lastMessage.parts?.filter(
+          (p): p is Extract<typeof p, { type: `tool-${string}` }> =>
+            typeof p.type === 'string' && p.type.startsWith('tool-') && 'toolCallId' in p,
+        );
+        const deployToolCalls = toolParts?.filter((t) => t.type === 'tool-deploy' && t.state === 'output-available');
         const successfulDeploys =
-          toolCalls?.filter((t) => t.state === 'result' && !t.result.startsWith('Error:')).length ?? 0;
+          deployToolCalls?.filter(
+            (t) => t.state === 'output-available' && typeof t.output === 'string' && !t.output.startsWith('Error:'),
+          ).length ?? 0;
         span.setAttribute('tools.successfulDeploys', successfulDeploys);
-        span.setAttribute('tools.failedDeploys', toolCalls ? toolCalls.length - successfulDeploys : 0);
+        span.setAttribute('tools.failedDeploys', deployToolCalls ? deployToolCalls.length - successfulDeploys : 0);
       }
       span.setAttribute('tools.disabledFromRepeatedErrors', toolsDisabledFromRepeatedErrors ? 'true' : 'false');
     }
@@ -318,7 +323,10 @@ async function onFinishHandler({
   }
 
   if (toolsDisabledFromRepeatedErrors) {
-    dataStream.writeMessageAnnotation({ type: 'failure', reason: REPEATED_ERROR_REASON });
+    writer.write({
+      type: 'message-metadata',
+      messageMetadata: { type: 'failure', reason: REPEATED_ERROR_REASON } as any,
+    });
   }
 
   let toolCallId: { kind: 'tool-call'; toolCallId: string } | { kind: 'final' } | undefined;
@@ -337,27 +345,27 @@ async function onFinishHandler({
     toolCallId = { kind: 'final' };
   }
   if (toolCallId) {
-    const annotation = encodeUsageAnnotation(toolCallId, usage, providerMetadata);
-    dataStream.writeMessageAnnotation({ type: 'usage', usage: annotation });
+    const annotation = encodeUsageAnnotation(toolCallId, usage as any, providerMetadata);
+    writer.write({ type: 'message-metadata', messageMetadata: { type: 'usage', usage: annotation } as any });
     const modelAnnotation = encodeModelAnnotation(toolCallId, providerMetadata, modelChoice);
-    dataStream.writeMessageAnnotation({ type: 'model', ...modelAnnotation });
+    writer.write({ type: 'message-metadata', messageMetadata: { type: 'model', ...modelAnnotation } as any });
   }
 
   // Record usage once we've generated the final part.
   if (result.finishReason !== 'tool-calls') {
-    await recordUsageCb(messages[messages.length - 1], { usage, providerMetadata });
+    await recordUsageCb(messages[messages.length - 1], { usage: usage as any, providerMetadata });
   }
   if (recordRawPromptsForDebugging) {
-    const responseCoreMessages = result.response.messages as (CoreAssistantMessage | CoreToolMessage)[];
+    const responseCoreMessages = result.response.messages as (AssistantModelMessage | ToolModelMessage)[];
     // don't block the request but keep the request alive in Vercel Lambdas
     waitUntil(
       storeDebugPrompt(
-        coreMessages,
+        modelMessages,
         chatInitialId,
         responseCoreMessages,
         result,
         {
-          usage,
+          usage: usage as any,
           providerMetadata,
         },
         modelProvider,
@@ -436,10 +444,10 @@ function buildUsageRecord(usage: Usage): UsageRecord {
 }
 
 async function storeDebugPrompt(
-  promptCoreMessages: CoreMessage[],
+  promptModelMessages: ModelMessage[],
   chatInitialId: string,
-  responseCoreMessages: CoreMessage[],
-  result: Omit<StepResult<any>, 'stepType' | 'isContinued'>,
+  responseModelMessages: ModelMessage[],
+  result: StepResult<any> & { readonly steps: StepResult<any>[]; readonly totalUsage: LanguageModelUsage },
   generation: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
   modelProvider: ModelProvider,
 ) {
@@ -448,7 +456,7 @@ async function storeDebugPrompt(
     const modelId = result.response.modelId || '';
     const usage = usageFromGeneration(generation);
 
-    const promptMessageData = new TextEncoder().encode(JSON.stringify(promptCoreMessages));
+    const promptMessageData = new TextEncoder().encode(JSON.stringify(promptModelMessages));
     const compressedData = compressWithLz4Server(promptMessageData);
 
     type Metadata = Omit<(typeof internal.debugPrompt.storeDebugPrompt)['_args'], 'promptCoreMessagesStorageId'>;
@@ -456,7 +464,7 @@ async function storeDebugPrompt(
 
     const metadata = {
       chatInitialId,
-      responseCoreMessages,
+      responseCoreMessages: responseModelMessages,
       finishReason,
       modelId,
       usage: buildUsageRecord(usage),
@@ -465,7 +473,7 @@ async function storeDebugPrompt(
 
     const formData = new FormData();
     formData.append('metadata', JSON.stringify(metadata));
-    formData.append('promptCoreMessages', new Blob([compressedData]));
+    formData.append('promptCoreMessages', new Blob([compressedData as BlobPart]));
 
     const response = await fetch(`${getConvexSiteUrl()}/upload_debug_prompt`, {
       method: 'POST',
@@ -484,6 +492,6 @@ async function storeDebugPrompt(
   }
 }
 
-function normalizeUsage(usage: number) {
-  return Number.isNaN(usage) ? 0 : usage;
+function normalizeUsage(usage: number | undefined) {
+  return usage == null || Number.isNaN(usage) ? 0 : usage;
 }

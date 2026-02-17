@@ -8,7 +8,7 @@ type Dependencies = Record<string, unknown>;
  * @param name Optional name to identify this usage in logs
  */
 export function useWhatChanged(dependencies: Dependencies, name?: string) {
-  const prevDeps = useRef<Dependencies>();
+  const prevDeps = useRef<Dependencies | undefined>(undefined);
 
   useEffect(() => {
     if (prevDeps.current) {

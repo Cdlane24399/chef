@@ -184,6 +184,7 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
         <div className="flex items-end gap-2">
           <div className="w-80">
             <TextInput
+              id="api-key-input-missing"
               autoFocus
               type={showKey ? 'text' : 'password'}
               // TODO: Remove when gap in design system is fixed
@@ -191,12 +192,10 @@ export function MissingApiKey({ provider, requireKey, resetDisableChatMessage }:
               value={newKeyValue}
               onChange={(e) => setNewKeyValue(e.target.value)}
               placeholder={`Enter your ${displayModelProviderName(provider)} API key`}
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-expect-error Unclear issue with typing of design system
               action={(): void => {
                 setShowKey(!showKey);
               }}
-              icon={showKey ? <EyeNoneIcon /> : <EyeOpenIcon />}
+              Icon={() => (showKey ? <EyeNoneIcon /> : <EyeOpenIcon />)}
             />
           </div>
           <Button onClick={handleSaveKey} disabled={isSaving || !newKeyValue.trim()} loading={isSaving}>

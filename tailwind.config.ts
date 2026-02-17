@@ -1,3 +1,4 @@
+// @ts-ignore - module may not have type declarations
 import TailwindConfig from '@convex-dev/design-system/tailwind.config';
 
 export default {

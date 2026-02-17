@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 export const deployToolDescription = `
@@ -16,9 +16,9 @@ with "use node" at the top is the only way to fix this. The files with "use node
 top can only contain actions. They can NEVER contains queries or mutations.
 `;
 
-export const deployTool: Tool = {
-  description: deployToolDescription,
-  parameters: z.object({}),
-};
-
 export const deployToolParameters = z.object({});
+
+export const deployTool = tool({
+  description: deployToolDescription,
+  inputSchema: deployToolParameters,
+});

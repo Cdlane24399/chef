@@ -3,8 +3,18 @@ import remarkGfm from 'remark-gfm';
 import type { PluggableList, Plugin } from 'unified';
 import rehypeSanitize, { defaultSchema, type Options as RehypeSanitizeOptions } from 'rehype-sanitize';
 import { SKIP, visit } from 'unist-util-visit';
-import type { UnistNode, UnistParent } from 'node_modules/unist-util-visit/lib';
 import { allowedHTMLElements } from 'chef-agent/prompts/formattingInstructions';
+
+interface UnistNode {
+  type: string;
+  position?: { start: { offset?: number }; end: { offset?: number } };
+  children?: UnistNode[];
+  value?: string;
+}
+
+interface UnistParent extends UnistNode {
+  children: UnistNode[];
+}
 
 // Add custom rehype plugin
 function remarkThinkRawContent() {

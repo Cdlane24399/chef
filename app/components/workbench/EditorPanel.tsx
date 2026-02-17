@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { memo, useMemo } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Panel, Group, Separator } from 'react-resizable-panels';
 import {
   CodeMirrorEditor,
   type OnChangeCallback as OnEditorChange,
@@ -77,9 +77,9 @@ export const EditorPanel = memo(function EditorPanel({
   }, [editorDocument, unsavedFiles]);
 
   return (
-    <PanelGroup direction="vertical">
+    <Group orientation="vertical">
       <Panel defaultSize={showTerminal ? DEFAULT_EDITOR_SIZE : 100} minSize={20}>
-        <PanelGroup direction="horizontal">
+        <Group orientation="horizontal">
           <Panel defaultSize={20} minSize={10} collapsible>
             <div className="flex h-full flex-col border-r">
               <PanelHeader>Files</PanelHeader>
@@ -95,7 +95,7 @@ export const EditorPanel = memo(function EditorPanel({
               />
             </div>
           </Panel>
-          <PanelResizeHandle />
+          <Separator />
           <Panel className="flex flex-col" defaultSize={80} minSize={20}>
             <PanelHeader className="overflow-x-auto">
               {activeFileSegments?.length && (
@@ -130,10 +130,10 @@ export const EditorPanel = memo(function EditorPanel({
               />
             </div>
           </Panel>
-        </PanelGroup>
+        </Group>
       </Panel>
-      <PanelResizeHandle />
+      <Separator />
       <TerminalTabs {...terminalInitializationOptions} />
-    </PanelGroup>
+    </Group>
   );
 });

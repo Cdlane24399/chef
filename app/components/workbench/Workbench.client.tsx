@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
+import type { JSX } from 'react';
 import { computed } from 'nanostores';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';

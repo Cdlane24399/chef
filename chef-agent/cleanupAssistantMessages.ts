@@ -1,18 +1,17 @@
-import { convertToCoreMessages } from 'ai';
-import type { Message } from 'ai';
+import { convertToModelMessages } from 'ai';
+import type { UIMessage } from 'ai';
 import { EXCLUDED_FILE_PATHS } from './constants.js';
 
-export function cleanupAssistantMessages(messages: Message[]) {
+export async function cleanupAssistantMessages(messages: UIMessage[]) {
   let processedMessages = messages.map((message) => {
     if (message.role == 'assistant') {
-      let content = cleanMessage(message.content);
-      let parts = message.parts?.map((part) => {
+      const parts = message.parts?.map((part) => {
         if (part.type === 'text') {
-          part.text = cleanMessage(part.text);
+          return { ...part, text: cleanMessage(part.text) };
         }
         return part;
       });
-      return { ...message, content, parts };
+      return { ...message, parts };
     } else {
       return message;
     }
@@ -20,11 +19,17 @@ export function cleanupAssistantMessages(messages: Message[]) {
   // Filter out empty messages and messages with empty parts
   processedMessages = processedMessages.filter(
     (message) =>
-      message.content.trim() !== '' ||
-      (message.parts &&
-        message.parts.filter((part) => part.type === 'text' || part.type === 'tool-invocation').length > 0),
+      message.parts && message.parts.filter((part) => part.type === 'text' || part.type.startsWith('tool-')).length > 0,
   );
-  return convertToCoreMessages(processedMessages).filter((message) => message.content.length > 0);
+  return (await convertToModelMessages(processedMessages)).filter((message) => {
+    if (typeof message.content === 'string') {
+      return message.content.length > 0;
+    }
+    if (Array.isArray(message.content)) {
+      return message.content.length > 0;
+    }
+    return true;
+  });
 }
 
 function cleanMessage(message: string) {

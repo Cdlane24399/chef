@@ -1,6 +1,5 @@
-import type { ToolInvocation } from 'ai';
+import type { UIToolInvocation, ToolSet } from 'ai';
 import type { AbsolutePath, RelativePath } from './utils/workDir.js';
-import type { Tool } from 'ai';
 import type { npmInstallToolParameters } from './tools/npmInstall.js';
 import type { editToolParameters } from './tools/edit.js';
 import type { viewParameters } from './tools/view.js';
@@ -45,7 +44,7 @@ export interface FileAction {
 export interface ToolUseAction {
   type: 'toolUse';
   toolName: string;
-  parsedContent: ToolInvocation;
+  parsedContent: UIToolInvocation<any>;
   // Serialized content to use for de-duping
   content: string;
 }
@@ -78,14 +77,14 @@ export interface Folder {
 
 export type EmptyArgs = z.ZodObject<Record<string, never>>;
 
-export type ConvexToolSet = {
-  deploy: Tool<EmptyArgs, string>;
-  npmInstall: Tool<typeof npmInstallToolParameters, string>;
-  lookupDocs: Tool<typeof lookupDocsParameters, string>;
-  addEnvironmentVariables?: Tool<typeof addEnvironmentVariablesParameters, void>;
-  view?: Tool<typeof viewParameters, string>;
-  edit?: Tool<typeof editToolParameters, string>;
-  getConvexDeploymentName: Tool<typeof getConvexDeploymentNameParameters, string>;
+export type ConvexToolSet = ToolSet & {
+  deploy: ToolSet[string];
+  npmInstall: ToolSet[string];
+  lookupDocs: ToolSet[string];
+  addEnvironmentVariables?: ToolSet[string];
+  view?: ToolSet[string];
+  edit?: ToolSet[string];
+  getConvexDeploymentName: ToolSet[string];
 };
 
 export type Dirent = File | Folder;

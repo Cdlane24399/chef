@@ -1,4 +1,4 @@
-import type { LanguageModelUsage, Message, ProviderMetadata } from 'ai';
+import type { LanguageModelUsage, UIMessage, ProviderMetadata } from 'ai';
 import { type ProviderType, type Usage, type UsageAnnotation, parseAnnotations } from '~/lib/common/annotations';
 import { captureMessage } from '@sentry/remix';
 
@@ -8,9 +8,9 @@ export function usageFromGeneration(generation: {
 }): Usage {
   const bedrockUsage = generation.providerMetadata?.bedrock?.usage as any;
   return {
-    completionTokens: generation.usage.completionTokens,
-    promptTokens: generation.usage.promptTokens,
-    totalTokens: generation.usage.totalTokens,
+    completionTokens: generation.usage.outputTokens ?? 0,
+    promptTokens: generation.usage.inputTokens ?? 0,
+    totalTokens: (generation.usage.inputTokens ?? 0) + (generation.usage.outputTokens ?? 0),
     providerMetadata: generation.providerMetadata,
     anthropicCacheCreationInputTokens: Number(generation.providerMetadata?.anthropic?.cacheCreationInputTokens ?? 0),
     anthropicCacheReadInputTokens: Number(generation.providerMetadata?.anthropic?.cacheReadInputTokens ?? 0),
@@ -39,14 +39,15 @@ export function initializeUsage(): Usage {
   };
 }
 
-export function getFailedToolCalls(message: Message): Set<string> {
+export function getFailedToolCalls(message: UIMessage): Set<string> {
   const failedToolCalls: Set<string> = new Set();
   for (const part of message.parts ?? []) {
-    if (part.type !== 'tool-invocation') {
+    if (!part.type.startsWith('tool-')) {
       continue;
     }
-    if (part.toolInvocation.state === 'result' && part.toolInvocation.result.startsWith('Error:')) {
-      failedToolCalls.add(part.toolInvocation.toolCallId);
+    const toolPart = part as any;
+    if (toolPart.state === 'output-available' && String(toolPart.output ?? '').startsWith('Error:')) {
+      failedToolCalls.add(toolPart.toolCallId);
     }
   }
   return failedToolCalls;
@@ -73,10 +74,10 @@ export function calculateTotalUsage(args: {
 }
 
 export async function calculateTotalBilledUsageForMessage(
-  lastMessage: Message | undefined,
+  lastMessage: UIMessage | undefined,
   finalGeneration: { usage: LanguageModelUsage; providerMetadata?: ProviderMetadata },
 ): Promise<Usage> {
-  const { usageForToolCall } = parseAnnotations(lastMessage?.annotations ?? []);
+  const { usageForToolCall } = parseAnnotations((lastMessage as any)?.annotations ?? []);
   // If there's an annotation for the final part, start with an empty usage, otherwise, create a
   // usage object from the passed in final generation.
   const startUsage = usageForToolCall.final ? initializeUsage() : usageFromGeneration(finalGeneration);

@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react';
 import type { Terminal as XTerm } from '@xterm/xterm';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Panel, type ImperativePanelHandle } from 'react-resizable-panels';
+import { Panel, type PanelImperativeHandle } from 'react-resizable-panels';
 import { IconButton } from '~/components/ui/IconButton';
 import { themeStore } from '~/lib/stores/theme';
 import { workbenchStore } from '~/lib/stores/workbench.client';
@@ -23,7 +23,7 @@ export const DEFAULT_TERMINAL_SIZE = 25;
 export const TerminalTabs = memo(function TerminalTabs(terminalInitializationOptions?: TerminalInitializationOptions) {
   const showTerminal = useStore(workbenchStore.showTerminal);
 
-  const terminalPanelRef = useRef<ImperativePanelHandle>(null);
+  const terminalPanelRef = useRef<PanelImperativeHandle>(null);
 
   const activeTerminal = useStore(activeTerminalTabStore);
   const [terminalCount, setTerminalCount] = useState(2);
@@ -55,15 +55,12 @@ export const TerminalTabs = memo(function TerminalTabs(terminalInitializationOpt
 
   return (
     <Panel
-      ref={terminalPanelRef}
+      panelRef={terminalPanelRef}
       defaultSize={showTerminal ? DEFAULT_TERMINAL_SIZE : 0}
       minSize={10}
       collapsible
-      onExpand={() => {
-        workbenchStore.toggleTerminal(true);
-      }}
-      onCollapse={() => {
-        workbenchStore.toggleTerminal(false);
+      onResize={(panelSize) => {
+        workbenchStore.toggleTerminal(panelSize.asPercentage > 0);
       }}
     >
       <div className="h-full">

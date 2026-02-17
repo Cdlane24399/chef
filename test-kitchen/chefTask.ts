@@ -1,4 +1,4 @@
-import { CoreMessage, generateText, LanguageModelUsage } from 'ai';
+import { ModelMessage, generateText, LanguageModelUsage } from 'ai';
 import * as walkdir from 'walkdir';
 import { path } from 'chef-agent/utils/path';
 import { ChefResult, ChefModel } from './types';
@@ -119,9 +119,8 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
     let success: boolean;
     let lastDeploySuccess = false;
     const totalUsage: LanguageModelUsage = {
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
     };
     while (true) {
       if (assistantMessage.parts.length >= MAX_STEPS) {
@@ -160,9 +159,8 @@ export async function chefTask(model: ChefModel, outputDir: string, userMessage:
       logger.info(
         `Time taken: ${performance.now() - start}ms\nUsage: ${JSON.stringify(response.usage)}\nMessage: ${parsed}`,
       );
-      totalUsage.promptTokens += response.usage.promptTokens;
-      totalUsage.completionTokens += response.usage.completionTokens;
-      totalUsage.totalTokens += response.usage.totalTokens;
+      totalUsage.inputTokens += response.usage.inputTokens;
+      totalUsage.outputTokens += response.usage.outputTokens;
       if (response.finishReason == 'stop') {
         success = lastDeploySuccess;
         break;
@@ -390,7 +388,7 @@ const installDependencies = wrapTraced(async function installDependencies(repoDi
 async function invokeGenerateText(model: ChefModel, opts: SystemPromptOptions, context: UIMessage[]) {
   return traced(
     async (span) => {
-      const messages: CoreMessage[] = [
+      const messages: ModelMessage[] = [
         {
           role: 'system',
           content: ROLE_SYSTEM_PROMPT,
@@ -399,7 +397,7 @@ async function invokeGenerateText(model: ChefModel, opts: SystemPromptOptions, c
           role: 'system',
           content: generalSystemPrompt(opts),
         },
-        ...cleanupAssistantMessages(context),
+        ...(await cleanupAssistantMessages(context)),
       ];
       try {
         const tools: ConvexToolSet = {
@@ -412,7 +410,7 @@ async function invokeGenerateText(model: ChefModel, opts: SystemPromptOptions, c
         tools.edit = editTool;
         const result = await generateText({
           model: model.ai,
-          maxTokens: model.maxTokens,
+          maxOutputTokens: model.maxTokens,
           messages,
           tools,
           maxSteps: 64,
@@ -424,9 +422,9 @@ async function invokeGenerateText(model: ChefModel, opts: SystemPromptOptions, c
             toolCalls: result.toolCalls,
           },
           metrics: {
-            prompt_tokens: result.usage.promptTokens,
-            completion_tokens: result.usage.completionTokens,
-            total_tokens: result.usage.totalTokens,
+            prompt_tokens: result.usage.inputTokens,
+            completion_tokens: result.usage.outputTokens,
+            total_tokens: (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0),
           },
           metadata: {
             model: model.model_slug,

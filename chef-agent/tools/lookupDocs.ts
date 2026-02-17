@@ -1,8 +1,8 @@
-import type { Tool } from 'ai';
-import { presenceComponentReadmePrompt } from 'chef-agent/prompts/components/presence';
-import { proseMirrorComponentReadmePrompt } from 'chef-agent/prompts/components/proseMirror';
+import { tool } from 'ai';
+import { presenceComponentReadmePrompt } from '../prompts/components/presence.js';
+import { proseMirrorComponentReadmePrompt } from '../prompts/components/proseMirror.js';
 import { z } from 'zod';
-import { resendComponentReadmePrompt } from 'chef-agent/prompts/components/resend';
+import { resendComponentReadmePrompt } from '../prompts/components/resend.js';
 
 export const lookupDocsParameters = z.object({
   docs: z
@@ -12,11 +12,11 @@ export const lookupDocsParameters = z.object({
     ),
 });
 
-export function lookupDocsTool(): Tool {
-  return {
+export function lookupDocsTool() {
+  return tool({
     description: `Lookup documentation for a list of features. Valid features to lookup are: \`proseMirror\` and \`presence\``,
-    parameters: lookupDocsParameters,
-  };
+    inputSchema: lookupDocsParameters,
+  });
 }
 
 export type LookupDocsParameters = z.infer<typeof lookupDocsParameters>;

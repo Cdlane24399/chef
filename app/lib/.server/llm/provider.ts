@@ -1,11 +1,10 @@
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createXai } from '@ai-sdk/xai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createVertex } from '@ai-sdk/google-vertex';
 import { createOpenAI } from '@ai-sdk/openai';
-import { awsCredentialsProvider } from '@vercel/functions/oidc';
 import { captureException } from '@sentry/remix';
 import { logger } from 'chef-agent/utils/logger';
 import type { ProviderType } from '~/lib/common/annotations';
@@ -19,7 +18,7 @@ const ALLOWED_AWS_REGIONS = ['us-east-1', 'us-west-2'];
 export type ModelProvider = Exclude<ProviderType, 'Unknown'>;
 type Provider = {
   maxTokens: number;
-  model: LanguageModelV1;
+  model: LanguageModel;
   options?: {
     xai?: {
       stream_options: { include_usage: true };
@@ -44,9 +43,9 @@ export function modelForProvider(provider: ModelProvider, modelChoice: string | 
   }
   switch (provider) {
     case 'Anthropic':
-      return getEnv('ANTHROPIC_MODEL') || 'claude-3-5-sonnet-20241022';
+      return getEnv('ANTHROPIC_MODEL') || 'claude-sonnet-4-5';
     case 'Bedrock':
-      return getEnv('AMAZON_BEDROCK_MODEL') || 'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
+      return getEnv('AMAZON_BEDROCK_MODEL') || 'us.anthropic.claude-sonnet-4-20250514-v1:0';
     case 'OpenAI':
       return getEnv('OPENAI_MODEL') || 'gpt-4.1';
     case 'XAI':
@@ -99,7 +98,7 @@ export function getProvider(
         });
       }
       provider = {
-        model: google(model),
+        model: google(model) as LanguageModel,
         maxTokens: 24576,
       };
       break;
@@ -126,7 +125,6 @@ export function getProvider(
       const openai = createOpenAI({
         apiKey: userApiKey || getEnv('OPENAI_API_KEY'),
         fetch: userApiKey ? userKeyApiFetch('OpenAI') : fetch,
-        compatibility: 'strict',
       });
       provider = {
         model: openai(model),
@@ -143,9 +141,8 @@ export function getProvider(
       }
       const bedrock = createAmazonBedrock({
         region,
-        credentialProvider: awsCredentialsProvider({
-          roleArn: getEnv('AWS_ROLE_ARN')!,
-        }),
+        // Use environment variables for AWS credentials
+        // AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
         fetch,
       });
       provider = {

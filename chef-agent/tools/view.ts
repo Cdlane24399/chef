@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 const viewRangeDescription = `
@@ -19,7 +19,7 @@ export const viewParameters = z.object({
   view_range: z.array(z.number()).nullable().describe(viewRangeDescription),
 });
 
-export const viewTool: Tool = {
+export const viewTool = tool({
   description: viewDescription,
-  parameters: viewParameters,
-};
+  inputSchema: viewParameters,
+});
