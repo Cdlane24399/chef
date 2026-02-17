@@ -152,10 +152,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         <div ref={scrollRef} className="flex size-full flex-col overflow-y-auto">
           <div className="flex w-full grow flex-col lg:flex-row">
             <div
-              className={classNames(styles.Chat, 'flex flex-col flex-grow lg:min-w-[var(--chat-min-width)] h-full', {
-                'items-center px-4 sm:px-8 lg:px-12': !chatStarted,
-                'pt-4': chatStarted,
-              })}
+              className={classNames(
+                styles.Chat,
+                'flex flex-col flex-grow min-w-0 lg:min-w-[var(--chat-min-width)] h-full',
+                {
+                  'items-center px-4 sm:px-8 lg:px-12': !chatStarted,
+                  'pt-4': chatStarted,
+                },
+              )}
             >
               {!chatStarted && (
                 <div id="intro" className="mx-auto mb-8 mt-12 max-w-chat px-4 text-center md:mt-16 lg:px-0">
@@ -172,7 +176,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                   'h-full flex flex-col': chatStarted,
                   'max-w-7xl': !chatEnabled,
                 })}
-                ref={scrollRef}
               >
                 {chatStarted ? (
                   <>
